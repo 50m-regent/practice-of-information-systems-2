@@ -7,7 +7,9 @@ class Settings(BaseSettings):
     algorithm: str = "HS256"
     access_token_expire_minutes: int = 30
     otp_expire_minutes: int = 10
-    
+    email_address: str
+    email_password: str
+
     class Config:
         env_file = ".env"
 
