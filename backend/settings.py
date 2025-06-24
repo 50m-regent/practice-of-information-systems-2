@@ -1,12 +1,32 @@
+# settings.py
+
 from sqlalchemy import create_engine
-from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy.orm import sessionmaker, declarative_base
 
-path = 'sqlite:///db.sqlite3'
+DATABASE_URL = "sqlite:///./db.sqlite3"  # プロジェクトルート直下
 
-# Engine の作成
-Engine = create_engine(
-  path,
-  encoding="utf-8",
-  echo=False
+# Alembic でも使う engine
+engine = create_engine(
+    DATABASE_URL,
+    connect_args={"check_same_thread": False},
+    echo=False,  # ログを出すなら True
 )
+
+# アプリケーション用セッション
+SessionLocal = sessionmaker(
+    autocommit=False,
+    autoflush=False,
+    bind=engine,
+)
+
+# すべてのモデルがこれを継承する
 Base = declarative_base()
+
+
+# FastAPI の Depends() で使う
+def get_db():
+    db = SessionLocal()
+    try:
+        yield db
+    finally:
+        db.close()
