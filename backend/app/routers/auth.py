@@ -1,9 +1,10 @@
-from fastapi import APIRouter, HTTPException, Depends
+from fastapi import APIRouter, HTTPException, Depends, BackgroundTasks
 from sqlalchemy.orm import Session
 from datetime import datetime, timedelta
 
 from app.schemas.auth import LoginRequest, TokenResponse, OTPRequest
 from app.utils.auth import create_access_token, generate_otp
+from app.utils.email import send_otp_email
 from settings import get_db
 from app.config import settings
 from models.users import User
@@ -12,10 +13,20 @@ from models.otpcodes import OTPCode
 router = APIRouter(prefix="/auth", tags=["Authentication"])
 
 @router.post("/login/")
-async def login(request: LoginRequest, db: Session = Depends(get_db)):
+async def login(request: LoginRequest, background_tasks: BackgroundTasks, db: Session = Depends(get_db)):
     user = db.query(User).filter(User.email == request.email).first()
     if not user:
-        raise HTTPException(status_code=404, detail="User not found")
+        user = User(
+            email=request.email,
+            username="新規ユーザー",
+            date_of_birth=None,
+            sex=None,
+            friends=[],
+            objective=[]
+            )
+        db.add(user)
+        db.commit()
+        db.refresh(user)
     
     otp_code = generate_otp()
     expires_at = datetime.utcnow() + timedelta(minutes=settings.otp_expire_minutes)
@@ -26,7 +37,9 @@ async def login(request: LoginRequest, db: Session = Depends(get_db)):
     db.add(otp_record)
     db.commit()
     
-    return {"message": f"OTP sent: {otp_code}"}
+    background_tasks.add_task(send_otp_email, user.email, otp_code)
+
+    return {"message": f"OTP sent to your email.: {otp_code}"}
 
 @router.post("/one-time/", response_model=TokenResponse)
 async def verify_otp(request: OTPRequest, db: Session = Depends(get_db)):
