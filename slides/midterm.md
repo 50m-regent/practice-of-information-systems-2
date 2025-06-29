@@ -163,6 +163,15 @@ _class: content
 ---
 
 <!--
+_header: リーンキャンバス- Lean Canvas
+_class: content
+-->
+
+![center](./lean-canvas.png)
+
+---
+
+<!--
 _header: ユーザーの課題 - Challenge to Solve
 _class: content
 -->
