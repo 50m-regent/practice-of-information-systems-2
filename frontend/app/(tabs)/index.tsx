@@ -1,75 +1,161 @@
-import { Image } from 'expo-image';
-import { Platform, StyleSheet } from 'react-native';
-
-import { HelloWave } from '@/components/HelloWave';
-import ParallaxScrollView from '@/components/ParallaxScrollView';
-import { ThemedText } from '@/components/ThemedText';
-import { ThemedView } from '@/components/ThemedView';
+import React from 'react';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { router } from 'expo-router';
+import { Plus, Calendar } from 'lucide-react-native';
+import { UserAvatar } from '@/components/UserAvatar';
+import { GoalCard } from '@/components/GoalCard';
+import { LifeLogCard } from '@/components/LifeLogCard';
+import { currentUser, mockGoals, mockFriends, mockLifeLogEntries } from '@/data/mockData';
 
 export default function HomeScreen() {
+  const age = new Date().getFullYear() - new Date(currentUser.dateOfBirth).getFullYear();
+
+  const handleAddGoal = () => {
+    router.push('/add-goal');
+  };
+
+  const handleAddData = () => {
+    router.push('/add-data');
+  };
+
   return (
-    <ParallaxScrollView
-      headerBackgroundColor={{ light: '#A1CEDC', dark: '#1D3D47' }}
-      headerImage={
-        <Image
-          source={require('@/assets/images/partial-react-logo.png')}
-          style={styles.reactLogo}
-        />
-      }>
-      <ThemedView style={styles.titleContainer}>
-        <ThemedText type="title">Welcome!</ThemedText>
-        <HelloWave />
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <ThemedText type="subtitle">Step 1: Try it</ThemedText>
-        <ThemedText>
-          Edit <ThemedText type="defaultSemiBold">app/(tabs)/index.tsx</ThemedText> to see changes.
-          Press{' '}
-          <ThemedText type="defaultSemiBold">
-            {Platform.select({
-              ios: 'cmd + d',
-              android: 'cmd + m',
-              web: 'F12',
-            })}
-          </ThemedText>{' '}
-          to open developer tools.
-        </ThemedText>
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <ThemedText type="subtitle">Step 2: Explore</ThemedText>
-        <ThemedText>
-          {`Tap the Explore tab to learn more about what's included in this starter app.`}
-        </ThemedText>
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <ThemedText type="subtitle">Step 3: Get a fresh start</ThemedText>
-        <ThemedText>
-          {`When you're ready, run `}
-          <ThemedText type="defaultSemiBold">npm run reset-project</ThemedText> to get a fresh{' '}
-          <ThemedText type="defaultSemiBold">app</ThemedText> directory. This will move the current{' '}
-          <ThemedText type="defaultSemiBold">app</ThemedText> to{' '}
-          <ThemedText type="defaultSemiBold">app-example</ThemedText>.
-        </ThemedText>
-      </ThemedView>
-    </ParallaxScrollView>
+    <SafeAreaView style={styles.container}>
+      <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
+        {/* User Profile Header */}
+        <View style={styles.header}>
+          <View style={styles.userInfo}>
+            <UserAvatar uri={currentUser.avatar} size={60} />
+            <View style={styles.userDetails}>
+              <Text style={styles.userName}>{currentUser.name}</Text>
+              <View style={styles.userMeta}>
+                <Calendar size={14} color="#6B7280" />
+                <Text style={styles.userAge}>Age {age}</Text>
+                <Text style={styles.userStats}>
+                  {currentUser.height}cm • {currentUser.weight}kg
+                </Text>
+              </View>
+            </View>
+          </View>
+        </View>
+
+        {/* Goals Section */}
+        <View style={styles.section}>
+          <View style={styles.sectionHeader}>
+            <Text style={styles.sectionTitle}>Goals</Text>
+            <TouchableOpacity style={styles.addButton} onPress={handleAddGoal}>
+              <Plus size={20} color="#3B82F6" />
+              <Text style={styles.addButtonText}>Add Goal</Text>
+            </TouchableOpacity>
+          </View>
+          
+          {mockGoals.map(goal => (
+            <GoalCard key={goal.id} goal={goal} friends={mockFriends} />
+          ))}
+        </View>
+
+        {/* Life Log Section */}
+        <View style={styles.section}>
+          <View style={styles.sectionHeader}>
+            <Text style={styles.sectionTitle}>Life Log</Text>
+            <TouchableOpacity style={styles.addButton} onPress={handleAddData}>
+              <Plus size={20} color="#3B82F6" />
+              <Text style={styles.addButtonText}>Add Data</Text>
+            </TouchableOpacity>
+          </View>
+          
+          <ScrollView 
+            horizontal 
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.lifeLogContainer}
+          >
+            {mockLifeLogEntries.map(entry => (
+              <LifeLogCard key={entry.id} entry={entry} />
+            ))}
+          </ScrollView>
+        </View>
+      </ScrollView>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  titleContainer: {
+  container: {
+    flex: 1,
+    backgroundColor: '#F9FAFB'
+  },
+  scrollView: {
+    flex: 1
+  },
+  header: {
+    backgroundColor: '#FFFFFF',
+    paddingHorizontal: 20,
+    paddingVertical: 24,
+    borderBottomWidth: 1,
+    borderBottomColor: '#E5E7EB'
+  },
+  userInfo: {
+    flexDirection: 'row',
+    alignItems: 'center'
+  },
+  userDetails: {
+    marginLeft: 16,
+    flex: 1
+  },
+  userName: {
+    fontSize: 24,
+    fontFamily: 'Inter-Bold',
+    color: '#111827',
+    marginBottom: 4
+  },
+  userMeta: {
+    flexDirection: 'row',
+    alignItems: 'center'
+  },
+  userAge: {
+    marginLeft: 6,
+    fontSize: 14,
+    fontFamily: 'Inter-Regular',
+    color: '#6B7280'
+  },
+  userStats: {
+    marginLeft: 12,
+    fontSize: 14,
+    fontFamily: 'Inter-Regular',
+    color: '#6B7280'
+  },
+  section: {
+    paddingHorizontal: 20,
+    paddingVertical: 24
+  },
+  sectionHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 16
+  },
+  sectionTitle: {
+    fontSize: 20,
+    fontFamily: 'Inter-Bold',
+    color: '#111827'
+  },
+  addButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    backgroundColor: '#EFF6FF',
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: '#DBEAFE'
   },
-  stepContainer: {
-    gap: 8,
-    marginBottom: 8,
+  addButtonText: {
+    marginLeft: 4,
+    fontSize: 14,
+    fontFamily: 'Inter-Medium',
+    color: '#3B82F6'
   },
-  reactLogo: {
-    height: 178,
-    width: 290,
-    bottom: 0,
-    left: 0,
-    position: 'absolute',
-  },
+  lifeLogContainer: {
+    paddingRight: 20
+  }
 });
