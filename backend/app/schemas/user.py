@@ -15,6 +15,9 @@ class SettingsResponse(BaseModel):
     username: str
     height: Optional[float] = None
 
+class IdResponse(BaseModel):
+    id: int
+
 class FriendListResponse(BaseModel):
     user_id: int
     username: str
