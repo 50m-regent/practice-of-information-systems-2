@@ -1,9 +1,12 @@
 from fastapi import APIRouter,  Depends
 from app.schemas.user import (
-    ProfileResponse, SettingsResponse, IdResponse
+    ProfileResponse, SettingsResponse, IdResponse, ProfileUpdateRequest
 )
 from app.utils.auth import get_current_user
 from models.users import User
+from sqlalchemy.orm import Session
+from settings import get_db
+import base64
 
 router = APIRouter(prefix="/user", tags=["User"])
 
@@ -16,6 +19,26 @@ async def get_profile(current_user: User = Depends(get_current_user)):
         height=current_user.height,
         sex=current_user.sex
     )
+
+@router.put("/profile/")
+async def update_profile(
+    profile: ProfileUpdateRequest,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    if profile.icon is not None:
+        current_user.icon = base64.b64decode(profile.icon)
+    if profile.username is not None:
+        current_user.username = profile.username
+    if profile.date_of_birth is not None:
+        current_user.date_of_birth = profile.date_of_birth
+    if profile.height is not None:
+        current_user.height = profile.height
+    if profile.sex is not None:
+        current_user.sex = profile.sex
+    db.commit()
+    db.refresh(current_user)
+    return {"message": "OK"}
 
 @router.get("/settings/", response_model=SettingsResponse)
 async def get_settings(current_user: User = Depends(get_current_user)):
