@@ -9,6 +9,13 @@ class ProfileResponse(BaseModel):
     height: Optional[float] = None
     sex: Optional[bool] = None
 
+class ProfileUpdateRequest(BaseModel):
+    icon: Optional[str] = None
+    username: Optional[str] = None
+    date_of_birth: Optional[datetime] = None
+    height: Optional[float] = None
+    sex: Optional[bool] = None
+
 class SettingsResponse(BaseModel):
     icon: Optional[str] = None
     address: str
