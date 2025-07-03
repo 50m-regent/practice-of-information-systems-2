@@ -1,3 +1,5 @@
+import QRCode from 'react-native-qrcode-svg';
+import { currentUser } from '@/data/mockData';
 import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Alert, Dimensions, Platform } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -14,11 +16,7 @@ export default function AddFriendScreen() {
   const [scannedData, setScannedData] = useState<string | null>(null);
 
   // Mock user QR code data - in a real app, this would be the user's unique ID
-  const userQRData = JSON.stringify({
-    userId: '1',
-    name: 'John Doe',
-    type: 'friend_request'
-  });
+  const userQRData = currentUser.id;
 
   useEffect(() => {
     if (Platform.OS === 'web') {
@@ -32,12 +30,12 @@ export default function AddFriendScreen() {
     
     setScannedData(data);
     
-    try {
-      const parsedData = JSON.parse(data);
-      if (parsedData.type === 'friend_request' && parsedData.userId) {
+    const scannedUserId = data; // scanned data as user_ID
+
+      if (scannedUserId) {
         Alert.alert(
           'Friend Request',
-          `Add ${parsedData.name || 'Unknown User'} as a friend?`,
+          `Send a friend request to user ${scannedUserId}?`,
           [
             {
               text: 'Cancel',
@@ -66,10 +64,7 @@ export default function AddFriendScreen() {
         Alert.alert('Invalid QR Code', 'This QR code is not a valid friend request.');
         setScannedData(null);
       }
-    } catch (error) {
-      Alert.alert('Invalid QR Code', 'Unable to read QR code data.');
-      setScannedData(null);
-    }
+    
   };
 
   const renderCameraView = () => {
@@ -136,13 +131,16 @@ export default function AddFriendScreen() {
     return (
       <View style={styles.qrDisplayContainer}>
         <View style={styles.qrCodeContainer}>
-          <QrCode size={QR_SIZE} color="#111827" />
-          <View style={styles.qrOverlay}>
-            <Text style={styles.qrPlaceholderText}>QR Code</Text>
-            <Text style={styles.qrPlaceholderSubtext}>
-              In a real app, this would be a generated QR code
-            </Text>
-          </View>
+          <QRCode
+          value={userQRData}
+          size={QR_SIZE * 0.9}
+          color="#111827"
+          backgroundColor='white'
+          logo={{ uri: currentUser.avatar }}
+          logoSize={40}
+          logoBackgroundColor='transparent'
+          logoBorderRadius={20}
+          />
         </View>
         
         <View style={styles.qrInfo}>
