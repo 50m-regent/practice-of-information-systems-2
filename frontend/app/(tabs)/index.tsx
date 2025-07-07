@@ -15,7 +15,17 @@ export default function HomeScreen() {
   const [isProfileModalVisible, setIsProfileModalVisible] = useState(false);
 
   const age = userProfile.dateOfBirth 
-    ? new Date().getFullYear() - new Date(userProfile.dateOfBirth).getFullYear()
+    ? (() => {
+        const birthDate = new Date(userProfile.dateOfBirth);
+        const today = new Date();
+        let age = today.getFullYear() - birthDate.getFullYear();
+        const monthDiff = today.getMonth() - birthDate.getMonth();
+        
+        if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
+          age--;
+        }
+        return age;
+      })()
     : null;
 
   const isProfileIncomplete = !userProfile.name || userProfile.name === 'User' || !userProfile.dateOfBirth || !userProfile.height;
@@ -124,6 +134,8 @@ export default function HomeScreen() {
           </ScrollView>
         </View>
       </ScrollView>
+
+      {/* Profile Edit Modal */}
       <ProfileEditModal
         visible={isProfileModalVisible}
         user={userProfile}
