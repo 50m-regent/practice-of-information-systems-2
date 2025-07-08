@@ -23,290 +23,57 @@ Vector StoreとResponses APIはOpenAIのAPIを使用します。ドキュメン�
 - Responses API
   - https://platform.openai.com/docs/api-reference/introduction
 
-## Endpoints
+# テーブル定義
+## User
+| 物理名           | 型           | 論理名        | キー      |
+|---------------|-------------|------------|---------|
+| id            | Int         | id         | PRIMARY |
+| email         | String      | メールアドレス    |         |
+| username      | String      | ネーム        |         |
+| date_of_birth | Datetime    | 生年月日       |         |
+| sex           | Bool        | 性別         |         |
+| friends       | List[Int]   | 友人のidリスト   |         |
+| objective     | List[Int]   | 目標のIDのリスト  |         |
+| icon          | LargeBinary | アイコン画像のデータ |         |
+| height        | Float       | 身長         |         |
 
-- login/
-    - 入力: str
-- one-time/
-    - 入力: str
-    - 出力:
-    
-    ```jsx
-    //JWT認証
-    {
-    	"acccess_token": access_token, 
-    	"token_type": "bearer"
-    }
-    ```
-    
-- profile/
-    - 入力: user id
-    - 出力:
-        
-        ```jsx
-        //プロフィール情報
-        {
-        	"icon": 画像データ,
-        	"username": str: User.username, 
-        	"date_of_birth": Datetime: User.date_of_birth, 
-        	"height": Vitaldata.value["height"], 
-        	"sex": Bool: User.sex,
-        }
-        
-        ```
-        
-- objectives/
-    - 入力: user_id
-    - 出力:
-        
-        ```jsx
-        //目標情報
-        [
-        	{
-        		"objective_id": objective_id,
-        		"start_date": Datatime,
-        		"end_date": Datatime, 
-        		"my_value": float: Objective.value,
-        		"data_name": str: VitalDataName.name,
-        		"friends": {"friend_icon": 画像データ,
-        								"friend_info": float: フレンドの値, },
-        	},
-        	...
-        ]
-        ```
-        
-- life-logs/
-    - 入力: user_id
-    - 出力:
-        
-        ```jsx
-        //ライフログ
-        [
-        	{
-        		"data_name": str: VitalDataName.name,
-        		"is_public": bool: VitalData.is_public,
-        		"register_date": Datatime: VitalData.date,
-        		"graph": グラフデータ, 
-        	},
-        
-        ...
-        ]
-        ```
-        
-- settings/
-    - 入力: user_id
-    - 出力:
-        
-        ```jsx
-        {
-        	"icon": 画像データ,
-        	"adress": str: User.email,
-        	"username": str: User.username, 
-        	"height": float?: Vitaldata.value["height"], 
-        }
-        ```
-        
-- add_objective_list/
-    - 入力: user_id
-    - 出力:
-        
-        ```jsx
-        {
-        	"objective_name": str: VitalDataName.name,
-        }
-        ```
-        
-- add_log_list/
-    - 入力: user_id
-    - 出力:
-        
-        ```jsx
-        {
-        	"vital_data": str: VitalDataName.name,
-        }
-        ```
-        
-- 
-- friends (get all friends)
-    - 入力:token
-    - 出力:
-        
-        ```json
-        //フレンド一覧
-        [
-          {
-            "user_id": int: User.id,
-            "username": str: User.username,
-            "icon": 画像データ,
-            "latest_step": float: VitalData.value["steps"], 
-          },
-          ...
-        ```
-        
-- friends/{user_id}
-    - user_id
-    - 出力:
-        
-        ```json
-        //フレンド詳細
-        {
-          "user_id": int,
-          "username": str: User.username,
-          "age": int,  // 計算された値（誕生日から）
-          "sex": bool: User.sex,
-          "latest_data": [
-            {
-              "data_name": str: VitalDataName.name,
-              "value": float: VitalData.value,
-              "date": Datetime: VitalData.date
-            },
-            ...
-          ]
-        }
-        ```
-        
-- objectives/{user_id}
-    - 入力:user_id
-    - 出力:
-        
-        ```json
-        //目標情報
-        [
-          {
-            "objective_id": int: Objective.id,
-            "data_name": str: VitalDataName.name,
-            "start_date": Datetime: Objective.start,
-            "end_date": Datetime: Objective.end,
-            "my_value": float: Objective.objective_value,
-            "friends": [
-              {
-                "friend_icon": 画像データ,
-                "friend_info": float: フレンドの同じデータ値（例：歩数など）
-              },
-              ...
-            ]
-          },
-          ...
-        ]
-        ```
-        
-- friends/add
-    - 入力:
-    - 出力:
-        
-        ```json
-        {
-          "message": "Friend added successfully"
-        }
-        ```
-        
-- user/qrcode
-    - 入力:
-    - 出力:
-- vitaldata/me
-    - 入力:
-    - 出力:
-        
-        ```json
-        [
-          { "name": "steps", "value": 8000, "date": "2025-06-23" },
-          { "name": "heart_rate", "value": 70, "date": "2025-06-23" },
-          ...
-        ]
-        ```
-        
-- vitaldata/statistics
-    - 入力:`vital_name`, `age_group?`, `sex?`
-    - 出力:
-        
-        ```json
-        {
-          "average": 7200,
-          "your_value": 8400,
-          "percentile": 80
-        }
-        ```
-        
-- objectives （自分の目標一覧）
-    - 入力:
-    - 出力:
-        
-        ```json
-        [
-          {
-            "id": 1,
-            "name": "steps",
-            "start": "2025-06-01",
-            "end": "2025-06-30",
-            "objective_value": 100000,
-            "progress": 50000
-          },
-          ...
-        ]
-        ```
-        
-- objectives  (set objectives)
-    - 入力:
-        
-        ```json
-        //目標情報一覧
-        [
-          {
-            "objective_id": int,
-            "data_name": str: VitalDataName.name,
-            "start_date": Datetime,
-            "end_date": Datetime,
-            "my_value": float: Objective.objective_value,
-            "progress": float: 現在の達成量
-          },
-          ...
-        ]
-        
-        ```
-        
-    - 出力:
-        
-        ```json
-        {
-          "id": 10,
-          "message": "Objective created"
-        }
-        ```
-        
-- objectives/{id}  (update objective)
-    - 入力:
-        
-        ```json
-        {
-          "objective_value": 120000
-        }
-        ```
-        
-    - 出力:
-        
-        ```json
-        {
-          "message": "Objective updated"
-        }
-        ```
-        
-- objectives/{id} (delete objective)
-    - 入力:
-        
-        ```json
-        objective_id
-        ```
-        
-    - 出力:
-        
-        ```json
-        {
-          "message": "Objective deleted"
-        }
-        ```
-        
-- chat
-    - 入力:
-        - message: string
-    - 出力::
-        - reply: string
+## OtpCodes
+| 物理名        | 型        | 論理名             | キー               |
+|------------|----------|-----------------|------------------|
+| id         | Int      | ユーザid           | PRIMARY, FOREIGN |
+| otp_code   | String   | 送信されたワンタイムパスワード |                  |
+| expires_at | Datetime | 有効期限            |                  |
+| is_used    | Bool     | 使用済みフラグ         |                  |
+
+## VitalData
+| 物理名     | 型        | 論理名                | キー      |
+|---------|----------|--------------------|---------|
+| id      | Int      | 1回のデータ登録に対するid     | PRIMARY |
+| user_id | Int      | ユーザid              | FOREIGN |
+| date    | Datetime | 登録時刻               |         |
+| name_id | Int      | VitalDataNameの属性id | FOREIGN |
+| value   | Float    | 属性の値               |         |
+
+## VitalDataName
+| 物理名  | 型      | 論理名        | キー      |
+|------|--------|------------|---------|
+| id   | Int    | データ名に対するid | PRIMARY |
+| name | String | データ名（血圧）とか |         |
+
+## UserVitalCategory
+| 物理名             | 型    | 論理名                                  | キー      |
+|-----------------|------|--------------------------------------|---------|
+| id              | Int  | vitalnameとuserの関係id                  | PRIMARY |
+| user_id         | Int  | ユーザid                                | FOREIGN |
+| vital_id        | Int  | VitalNameのid                         | FOREIGN |
+| is_public       | Bool | 公開してよいか                              |         |
+| is_accumulating | Bool | 蓄積させるか（いったんUserごとに変えられるようになってるけど許して） |         |
+
+## Objective
+| 物理名        | 型        | 論理名                | キー      |
+|------------|----------|--------------------|---------|
+| id         | Int      | 目標id               | PRIMARY |
+| start_date | Datetime | 目標の開始時期            |         |
+| end_date   | Datetime | 目標の終了時期            |         |
+| name_id    | Int      | VitalDataNameの属性id | FOREIGN |
+| value      | Float    | 属性の値               |         |
