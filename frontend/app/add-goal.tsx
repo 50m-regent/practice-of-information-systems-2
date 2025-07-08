@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, Alert } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
-import { ArrowLeft, Target, Footprints, Heart, Scale, Activity, Clock, Calendar } from 'lucide-react-native';
+import { ArrowLeft, Target, Footprints, Heart, Scale, Activity } from 'lucide-react-native';
+import { AddGoalModal } from '@/components/AddGoalModal';
 
 const goalTypes = [
   {
@@ -63,47 +64,23 @@ const goalTypes = [
 
 export default function AddGoalScreen() {
   const [selectedGoal, setSelectedGoal] = useState<typeof goalTypes[0] | null>(null);
-  const [targetValue, setTargetValue] = useState('');
-  const [startDate, setStartDate] = useState('');
-  const [endDate, setEndDate] = useState('');
-  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isModalVisible, setIsModalVisible] = useState(false);
 
   const handleGoalSelect = (goal: typeof goalTypes[0]) => {
     setSelectedGoal(goal);
-    setTargetValue(goal.defaultTarget.toString());
-    
-    // Set default dates (today to 30 days from now)
-    const today = new Date();
-    const futureDate = new Date();
-    futureDate.setDate(today.getDate() + 30);
-    
-    setStartDate(today.toISOString().split('T')[0]);
-    setEndDate(futureDate.toISOString().split('T')[0]);
+    setIsModalVisible(true);
   };
 
-  const handleSubmit = async () => {
-    if (!selectedGoal || !targetValue || !startDate || !endDate) {
-      Alert.alert('Error', 'Please fill in all fields');
-      return;
-    }
+  const handleModalClose = () => {
+    setIsModalVisible(false);
+    setSelectedGoal(null);
+  };
 
-    const target = parseFloat(targetValue);
-    if (isNaN(target) || target <= 0) {
-      Alert.alert('Error', 'Please enter a valid target value');
-      return;
-    }
-
-    if (new Date(endDate) <= new Date(startDate)) {
-      Alert.alert('Error', 'End date must be after start date');
-      return;
-    }
-
-    setIsSubmitting(true);
-
+  const handleGoalSave = async (data: any) => {
     try {
       // Here you would typically save to your backend/database
       // For now, we'll simulate the save
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      await new Promise(resolve => setTimeout(resolve, 500));
       
       Alert.alert(
         'Success',
@@ -111,134 +88,68 @@ export default function AddGoalScreen() {
         [
           {
             text: 'OK',
-            onPress: () => router.back()
+            onPress: () => {
+              setIsModalVisible(false);
+              setSelectedGoal(null);
+              router.back();
+            }
           }
         ]
       );
     } catch (error) {
       Alert.alert('Error', 'Failed to create goal. Please try again.');
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
-
-  const handleBack = () => {
-    if (selectedGoal) {
-      setSelectedGoal(null);
-      setTargetValue('');
-      setStartDate('');
-      setEndDate('');
-    } else {
-      router.back();
     }
   };
 
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
-        <TouchableOpacity style={styles.backButton} onPress={handleBack}>
+        <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
           <ArrowLeft size={24} color="#111827" />
         </TouchableOpacity>
-        <Text style={styles.title}>
-          {selectedGoal ? 'Set Goal Details' : 'Add New Goal'}
-        </Text>
+        <Text style={styles.title}>Add New Goal</Text>
         <View style={styles.placeholder} />
       </View>
 
       <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
-        {!selectedGoal ? (
-          <View style={styles.goalTypesList}>
-            <Text style={styles.sectionTitle}>Choose a goal type</Text>
-            <Text style={styles.sectionDescription}>
-              Select the type of health goal you want to track
-            </Text>
-            
-            {goalTypes.map(goal => {
-              const IconComponent = goal.icon;
-              return (
-                <TouchableOpacity
-                  key={goal.id}
-                  style={styles.goalTypeItem}
-                  onPress={() => handleGoalSelect(goal)}
-                >
-                  <View style={[styles.iconContainer, { backgroundColor: `${goal.color}15` }]}>
-                    <IconComponent size={24} color={goal.color} />
-                  </View>
-                  <View style={styles.goalTypeInfo}>
-                    <Text style={styles.goalTypeTitle}>{goal.title}</Text>
-                    <Text style={styles.goalTypeDescription}>{goal.description}</Text>
-                  </View>
-                  <View style={styles.chevron}>
-                    <Text style={styles.chevronText}>›</Text>
-                  </View>
-                </TouchableOpacity>
-              );
-            })}
-          </View>
-        ) : (
-          <View style={styles.goalForm}>
-            <View style={styles.selectedGoalHeader}>
-              <View style={[styles.selectedIconContainer, { backgroundColor: `${selectedGoal.color}15` }]}>
-                <selectedGoal.icon size={32} color={selectedGoal.color} />
-              </View>
-              <View style={styles.selectedGoalInfo}>
-                <Text style={styles.selectedGoalTitle}>{selectedGoal.title}</Text>
-                <Text style={styles.selectedGoalDescription}>{selectedGoal.description}</Text>
-              </View>
-            </View>
-
-            <View style={styles.formSection}>
-              <Text style={styles.formLabel}>Target Value</Text>
-              <View style={styles.inputContainer}>
-                <TextInput
-                  style={styles.textInput}
-                  value={targetValue}
-                  onChangeText={setTargetValue}
-                  placeholder={`Enter target in ${selectedGoal.unit}`}
-                  keyboardType="numeric"
-                />
-                <Text style={styles.unitLabel}>{selectedGoal.unit}</Text>
-              </View>
-            </View>
-
-            <View style={styles.formSection}>
-              <Text style={styles.formLabel}>Start Date</Text>
-              <View style={styles.dateInputContainer}>
-                <Calendar size={20} color="#6B7280" />
-                <TextInput
-                  style={styles.dateInput}
-                  value={startDate}
-                  onChangeText={setStartDate}
-                  placeholder="YYYY-MM-DD"
-                />
-              </View>
-            </View>
-
-            <View style={styles.formSection}>
-              <Text style={styles.formLabel}>End Date</Text>
-              <View style={styles.dateInputContainer}>
-                <Calendar size={20} color="#6B7280" />
-                <TextInput
-                  style={styles.dateInput}
-                  value={endDate}
-                  onChangeText={setEndDate}
-                  placeholder="YYYY-MM-DD"
-                />
-              </View>
-            </View>
-
-            <TouchableOpacity
-              style={[styles.submitButton, isSubmitting && styles.submitButtonDisabled]}
-              onPress={handleSubmit}
-              disabled={isSubmitting}
-            >
-              <Text style={styles.submitButtonText}>
-                {isSubmitting ? 'Creating Goal...' : 'Create Goal'}
-              </Text>
-            </TouchableOpacity>
-          </View>
-        )}
+        <View style={styles.goalTypesList}>
+          <Text style={styles.sectionTitle}>Choose a goal type</Text>
+          <Text style={styles.sectionDescription}>
+            Select the type of health goal you want to track
+          </Text>
+          
+          {goalTypes.map(goal => {
+            const IconComponent = goal.icon;
+            return (
+              <TouchableOpacity
+                key={goal.id}
+                style={styles.goalTypeItem}
+                onPress={() => handleGoalSelect(goal)}
+                activeOpacity={0.7}
+              >
+                <View style={[styles.iconContainer, { backgroundColor: `${goal.color}15` }]}>
+                  <IconComponent size={24} color={goal.color} />
+                </View>
+                <View style={styles.goalTypeInfo}>
+                  <Text style={styles.goalTypeTitle}>{goal.title}</Text>
+                  <Text style={styles.goalTypeDescription}>{goal.description}</Text>
+                </View>
+                <View style={styles.chevron}>
+                  <Text style={styles.chevronText}>›</Text>
+                </View>
+              </TouchableOpacity>
+            );
+          })}
+        </View>
       </ScrollView>
+
+      {/* Add Goal Modal */}
+      <AddGoalModal
+        visible={isModalVisible}
+        selectedType={selectedGoal}
+        onClose={handleModalClose}
+        onSave={handleGoalSave}
+      />
     </SafeAreaView>
   );
 }
@@ -338,109 +249,5 @@ const styles = StyleSheet.create({
     fontSize: 20,
     color: '#D1D5DB',
     fontFamily: 'Inter-Regular'
-  },
-  goalForm: {
-    padding: 20
-  },
-  selectedGoalHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#FFFFFF',
-    borderRadius: 16,
-    padding: 20,
-    marginBottom: 24,
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 2
-    },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 3
-  },
-  selectedIconContainer: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    justifyContent: 'center',
-    alignItems: 'center'
-  },
-  selectedGoalInfo: {
-    marginLeft: 16,
-    flex: 1
-  },
-  selectedGoalTitle: {
-    fontSize: 18,
-    fontFamily: 'Inter-Bold',
-    color: '#111827',
-    marginBottom: 4
-  },
-  selectedGoalDescription: {
-    fontSize: 14,
-    fontFamily: 'Inter-Regular',
-    color: '#6B7280'
-  },
-  formSection: {
-    marginBottom: 24
-  },
-  formLabel: {
-    fontSize: 16,
-    fontFamily: 'Inter-SemiBold',
-    color: '#111827',
-    marginBottom: 8
-  },
-  inputContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#FFFFFF',
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: '#D1D5DB',
-    paddingHorizontal: 16,
-    paddingVertical: 12
-  },
-  textInput: {
-    flex: 1,
-    fontSize: 16,
-    fontFamily: 'Inter-Regular',
-    color: '#111827'
-  },
-  unitLabel: {
-    fontSize: 14,
-    fontFamily: 'Inter-Medium',
-    color: '#6B7280',
-    marginLeft: 8
-  },
-  dateInputContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#FFFFFF',
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: '#D1D5DB',
-    paddingHorizontal: 16,
-    paddingVertical: 12
-  },
-  dateInput: {
-    flex: 1,
-    fontSize: 16,
-    fontFamily: 'Inter-Regular',
-    color: '#111827',
-    marginLeft: 12
-  },
-  submitButton: {
-    backgroundColor: '#3B82F6',
-    borderRadius: 12,
-    paddingVertical: 16,
-    alignItems: 'center',
-    marginTop: 12
-  },
-  submitButtonDisabled: {
-    backgroundColor: '#9CA3AF'
-  },
-  submitButtonText: {
-    fontSize: 16,
-    fontFamily: 'Inter-SemiBold',
-    color: '#FFFFFF'
   }
 });
