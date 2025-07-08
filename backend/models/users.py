@@ -1,6 +1,7 @@
 from sqlalchemy import Column, Integer, String, Boolean, DateTime, LargeBinary, Float
 from sqlalchemy.dialects.sqlite import JSON
 from settings import Base
+from typing import Optional, List
 
 class User(Base):
     __tablename__ = 'users'
@@ -10,8 +11,8 @@ class User(Base):
     username = Column(String, nullable=False)
     date_of_birth = Column(DateTime, nullable=True)
     sex = Column(Boolean, nullable=True)
-    friends = Column(JSON, nullable=True)
-    objective = Column(JSON, nullable=True)
+    friends: Optional[List[int]] = Column(JSON, nullable=True)
+    objective: Optional[List[int]] = Column(JSON, nullable=True)
     icon = Column(LargeBinary, nullable=True)
     height = Column(Float, nullable=True)
 
