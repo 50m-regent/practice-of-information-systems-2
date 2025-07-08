@@ -70,44 +70,28 @@ class VectorStoreChecker:
     def search_sample(self, vector_store_id: str, query: str = "健康データの概要を教えて") -> str:
         """Vector Storeでサンプル検索を実行"""
         try:
-            assistant = self.client.beta.assistants.create(
-                name="Vector Store Test Assistant",
-                instructions="提供されたデータの概要を簡潔に説明してください。",
+            # Responses APIを使用
+            response = self.client.responses.create(
                 model="gpt-4o-mini",
-                tools=[{"type": "file_search"}],
-                tool_resources={
-                    "file_search": {
-                        "vector_store_ids": [vector_store_id]
-                    }
-                }
-            )
-            
-            thread = self.client.beta.threads.create()
-            
-            self.client.beta.threads.messages.create(
-                thread_id=thread.id,
-                role="user",
-                content=query
-            )
-            
-            run = self.client.beta.threads.runs.create_and_poll(
-                thread_id=thread.id,
-                assistant_id=assistant.id
+                input=query,
+                instructions="提供されたデータの概要を簡潔に説明してください。",
+                tools=[{
+                    "type": "file_search",
+                    "vector_store_ids": [vector_store_id]
+                }]
             )
             
             result = "検索結果なし"
-            if run.status == "completed":
-                messages = self.client.beta.threads.messages.list(thread_id=thread.id)
-                for message in messages.data:
-                    if message.role == "assistant":
-                        for content in message.content:
-                            if content.type == "text":
-                                result = content.text.value
-                                break
-                        break
-            
-            # クリーンアップ
-            self.client.beta.assistants.delete(assistant.id)
+            if hasattr(response, 'output') and response.output:
+                if hasattr(response.output, 'content') and response.output.content:
+                    for content in response.output.content:
+                        if content.type == "text":
+                            result = content.text.value
+                            break
+                elif hasattr(response.output, 'text'):
+                    result = response.output.text
+                else:
+                    result = str(response.output)
             
             return result
             

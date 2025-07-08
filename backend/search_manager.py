@@ -36,8 +36,10 @@ class SearchManager:
             
             full_query = f"{context}\n\n質問: {query}" if context else query
             
-            assistant = self.client.beta.assistants.create(
-                name="Health Data AI Assistant",
+            # Responses APIを使用
+            response = self.client.responses.create(
+                model=DEFAULT_MODEL,
+                input=full_query,
                 instructions="""あなたは健康データ管理システムのAIアシスタントです。
                 
 以下の点に注意して回答してください：
@@ -48,60 +50,44 @@ class SearchManager:
 5. 関連するデータがある場合は、それも含めて説明する
 
 ユーザーの質問に対して、関連するユーザー情報、バイタルデータ、目標データを検索し、わかりやすく回答してください。""",
-                model=DEFAULT_MODEL,
-                tools=[{"type": "file_search"}],
-                tool_resources={
-                    "file_search": {
-                        "vector_store_ids": [self.vector_store_manager.vector_store_id]
-                    }
-                }
-            )
-            
-            thread = self.client.beta.threads.create()
-            
-            message = self.client.beta.threads.messages.create(
-                thread_id=thread.id,
-                role="user",
-                content=full_query
-            )
-            
-            run = self.client.beta.threads.runs.create_and_poll(
-                thread_id=thread.id,
-                assistant_id=assistant.id
+                tools=[{
+                    "type": "file_search",
+                    "vector_store_ids": [self.vector_store_manager.vector_store_id]
+                }]
             )
             
             result = {
                 "success": False,
                 "response": "",
                 "sources": [],
-                "run_status": run.status
+                "response_id": response.id
             }
             
-            if run.status == "completed":
-                messages = self.client.beta.threads.messages.list(
-                    thread_id=thread.id
-                )
-                
-                for message in messages.data:
-                    if message.role == "assistant":
-                        for content in message.content:
-                            if content.type == "text":
-                                result["response"] = content.text.value
-                                result["success"] = True
-                                
-                                if hasattr(content.text, 'annotations'):
-                                    for annotation in content.text.annotations:
-                                        if hasattr(annotation, 'file_citation'):
-                                            result["sources"].append({
-                                                "type": "file_citation",
-                                                "file_id": annotation.file_citation.file_id
-                                            })
-                                break
-                        break
+            if hasattr(response, 'output') and response.output:
+                # レスポンスからテキスト内容を取得
+                if hasattr(response.output, 'content') and response.output.content:
+                    for content in response.output.content:
+                        if content.type == "text":
+                            result["response"] = content.text.value
+                            result["success"] = True
+                            
+                            # annotationsから参照元情報を取得
+                            if hasattr(content.text, 'annotations'):
+                                for annotation in content.text.annotations:
+                                    if hasattr(annotation, 'file_citation'):
+                                        result["sources"].append({
+                                            "type": "file_citation",
+                                            "file_id": annotation.file_citation.file_id
+                                        })
+                            break
+                elif hasattr(response.output, 'text'):
+                    result["response"] = response.output.text
+                    result["success"] = True
+                else:
+                    result["response"] = str(response.output)
+                    result["success"] = True
             else:
-                result["error"] = f"検索実行に失敗しました。ステータス: {run.status}"
-            
-            self.client.beta.assistants.delete(assistant.id)
+                result["error"] = "レスポンスからの出力の取得に失敗しました"
             
             return result
             

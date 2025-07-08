@@ -154,52 +154,38 @@ class VectorStoreManager:
             if not self.vector_store_id:
                 raise ValueError("Vector Storeが設定されていません")
             
-            assistant = self.client.beta.assistants.create(
-                name="Health Data Search Assistant",
-                instructions="あなたは健康データの検索アシスタントです。提供されたデータから関連する情報を見つけて、日本語で回答してください。",
+            # Responses APIを使用
+            response = self.client.responses.create(
                 model=DEFAULT_MODEL,
-                tools=[{"type": "file_search"}],
-                tool_resources={
-                    "file_search": {
-                        "vector_store_ids": [self.vector_store_id]
-                    }
-                }
+                input=query,
+                instructions="あなたは健康データの検索アシスタントです。提供されたデータから関連する情報を見つけて、日本語で回答してください。",
+                tools=[{
+                    "type": "file_search",
+                    "vector_store_ids": [self.vector_store_id]
+                }]
             )
             
-            thread = self.client.beta.threads.create()
+            result = []
+            if hasattr(response, 'output') and response.output:
+                if hasattr(response.output, 'content') and response.output.content:
+                    for content in response.output.content:
+                        if content.type == "text":
+                            result.append({
+                                "content": content.text.value,
+                                "annotations": getattr(content.text, 'annotations', [])
+                            })
+                elif hasattr(response.output, 'text'):
+                    result.append({
+                        "content": response.output.text,
+                        "annotations": []
+                    })
+                else:
+                    result.append({
+                        "content": str(response.output),
+                        "annotations": []
+                    })
             
-            message = self.client.beta.threads.messages.create(
-                thread_id=thread.id,
-                role="user",
-                content=query
-            )
-            
-            run = self.client.beta.threads.runs.create_and_poll(
-                thread_id=thread.id,
-                assistant_id=assistant.id
-            )
-            
-            if run.status == "completed":
-                messages = self.client.beta.threads.messages.list(
-                    thread_id=thread.id
-                )
-                
-                result = []
-                for message in messages.data:
-                    if message.role == "assistant":
-                        for content in message.content:
-                            if content.type == "text":
-                                result.append({
-                                    "content": content.text.value,
-                                    "annotations": getattr(content.text, 'annotations', [])
-                                })
-                
-                self.client.beta.assistants.delete(assistant.id)
-                
-                return result
-            else:
-                print(f"検索実行エラー: {run.status}")
-                return []
+            return result
                 
         except Exception as e:
             print(f"検索エラー: {e}")
