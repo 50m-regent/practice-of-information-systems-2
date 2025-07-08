@@ -9,6 +9,7 @@ from settings import get_db
 from models.users import User
 from models.vitaldata import VitalData
 from models.vitaldataname import VitalDataName
+from models.uservitalcategory import UserVitalCategory
 
 router = APIRouter(prefix="/friends", tags=["Friends"])
 
@@ -25,11 +26,18 @@ async def get_friends(current_user: User = Depends(get_current_user), db: Sessio
                     VitalData.name_id == VitalDataName.id
                 ).order_by(VitalData.date.desc()).first()
                 
+                age = -1
+                if friend.date_of_birth:
+                    today = datetime.now()
+                    age = today.year - friend.date_of_birth.year
+                    if (today.month, today.day) < (friend.date_of_birth.month, friend.date_of_birth.day):
+                        age -= 1
+
                 friends.append(FriendListResponse(
                     user_id=friend.id,
                     username=friend.username,
                     icon=None,
-                    latest_step=steps_data.value if steps_data else None
+                    age=age
                 ))
     
     return friends
@@ -44,28 +52,31 @@ async def get_friend_detail(user_id: int, current_user: User = Depends(get_curre
     if friend.date_of_birth:
         today = datetime.now()
         age = today.year - friend.date_of_birth.year
-        if today.month < friend.date_of_birth.month or (today.month == friend.date_of_birth.month and today.day < friend.date_of_birth.day):
+        if (today.month, today.day) < (friend.date_of_birth.month, friend.date_of_birth.day):
             age -= 1
     
-    latest_data = []
-    vital_data = db.query(VitalData).join(VitalDataName).filter(
-        VitalData.name_id == VitalDataName.id
-    ).order_by(VitalData.date.desc()).limit(10).all()
+    vital_data = []
+    vital_datas = db.query(VitalData).join(UserVitalCategory, VitalData.user_id == UserVitalCategory.user_id)\
+        .join(VitalDataName, VitalData.name_id == VitalDataName.id)\
+        .filter(
+            VitalData.user_id == friend.id
+        ).order_by(VitalData.date.desc()).all()
     
-    for data in vital_data:
-        data_name = db.query(VitalDataName).filter(VitalDataName.id == data.name_id).first()
-        latest_data.append({
-            "data_name": data_name.name,
-            "value": data.value,
-            "date": data.date
-        })
+    for data in vital_datas:
+        if data.UserVitalCategory.is_public == True:
+            vital_data.append({
+                "data_name": data.VitalDataNamename,
+                "value": data.VitalData.value,
+                "date": data.VitalData.date
+            })
     
     return FriendDetailResponse(
         user_id=friend.id,
+        icon=friend.icon,
         username=friend.username,
         age=age,
         sex=friend.sex,
-        latest_data=latest_data
+        vital_data=vital_data
     )
 
 @router.post("/add")
@@ -77,10 +88,12 @@ async def add_friend(request: AddFriendRequest, current_user: User = Depends(get
     friends = current_user.friends or []
     
     if request.friend_id in friends:
-        raise HTTPException(status_code=400, detail="Already friends")
+        return {"message": "Friend already exists"}
     
     friends.append(request.friend_id)
+    friends.sort()
     current_user.friends = friends
     db.commit()
+    db.refresh(current_user)
     
     return {"message": "Friend added successfully"}
