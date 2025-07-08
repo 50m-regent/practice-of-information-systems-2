@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
@@ -6,10 +6,19 @@ import { Plus, Calendar } from 'lucide-react-native';
 import { UserAvatar } from '@/components/UserAvatar';
 import { GoalCard } from '@/components/GoalCard';
 import { LifeLogCard } from '@/components/LifeLogCard';
+import { ProfileEditModal } from '@/components/ProfileEditModal';
 import { currentUser, mockGoals, mockFriends, mockLifeLogEntries } from '@/data/mockData';
+import { User } from '@/types';
 
 export default function HomeScreen() {
-  const age = new Date().getFullYear() - new Date(currentUser.dateOfBirth).getFullYear();
+  const [userProfile, setUserProfile] = useState(currentUser);
+  const [isProfileModalVisible, setIsProfileModalVisible] = useState(false);
+
+  const age = userProfile.dateOfBirth 
+    ? new Date().getFullYear() - new Date(userProfile.dateOfBirth).getFullYear()
+    : null;
+
+  const isProfileIncomplete = !userProfile.name || userProfile.name === 'User' || !userProfile.dateOfBirth || !userProfile.height;
 
   const handleAddGoal = () => {
     router.push('/add-goal');
@@ -19,25 +28,65 @@ export default function HomeScreen() {
     router.push('/add-data');
   };
 
+  const handleProfileUpdate = (updatedProfile: User) => {
+    setUserProfile(updatedProfile);
+    setIsProfileModalVisible(false);
+  };
+
+  const renderUserHeader = () => {
+    if (isProfileIncomplete) {
+      return (
+        <View style={styles.incompleteProfileHeader}>
+          <View style={styles.incompleteProfileContent}>
+            <View style={{ position: 'relative' }}>
+              <UserAvatar uri={userProfile.avatar} size={60} />
+              {/* 红点 */}
+              <View style={styles.redDot} />
+            </View>
+            <View style={styles.incompleteProfileInfo}>
+              <Text style={styles.incompleteUserName}>ユーザー名未設定</Text>
+              <Text style={styles.incompleteUserMeta}>生年月日未設定  身長未設定</Text>
+            </View>
+            <TouchableOpacity 
+              style={styles.incompleteEditButton}
+              onPress={() => setIsProfileModalVisible(true)}
+            >
+              <Text style={styles.incompleteEditButtonText}>変更</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      );
+    }
+    return (
+      <View style={styles.header}>
+        <View style={styles.userInfo}>
+          <UserAvatar uri={userProfile.avatar} size={60} />
+          <View style={styles.userDetails}>
+            <Text style={styles.userName}>{userProfile.name}</Text>
+            <View style={styles.userMeta}>
+              <Calendar size={14} color="#6B7280" />
+              <Text style={styles.userAge}>Age {age}</Text>
+              <Text style={styles.userStats}>
+                {userProfile.height}cm • {userProfile.weight}kg
+              </Text>
+            </View>
+          </View>
+          <TouchableOpacity 
+            style={styles.editButton}
+            onPress={() => setIsProfileModalVisible(true)}
+          >
+            <Text style={styles.incompleteEditButtonText}>変更</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+    );
+  };
+
   return (
     <SafeAreaView style={styles.container}>
       <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
         {/* User Profile Header */}
-        <View style={styles.header}>
-          <View style={styles.userInfo}>
-            <UserAvatar uri={currentUser.avatar} size={60} />
-            <View style={styles.userDetails}>
-              <Text style={styles.userName}>{currentUser.name}</Text>
-              <View style={styles.userMeta}>
-                <Calendar size={14} color="#6B7280" />
-                <Text style={styles.userAge}>Age {age}</Text>
-                <Text style={styles.userStats}>
-                  {currentUser.height}cm • {currentUser.weight}kg
-                </Text>
-              </View>
-            </View>
-          </View>
-        </View>
+        {renderUserHeader()}
 
         {/* Goals Section */}
         <View style={styles.section}>
@@ -75,6 +124,12 @@ export default function HomeScreen() {
           </ScrollView>
         </View>
       </ScrollView>
+      <ProfileEditModal
+        visible={isProfileModalVisible}
+        user={userProfile}
+        onClose={() => setIsProfileModalVisible(false)}
+        onSave={handleProfileUpdate}
+      />
     </SafeAreaView>
   );
 }
@@ -93,6 +148,21 @@ const styles = StyleSheet.create({
     paddingVertical: 24,
     borderBottomWidth: 1,
     borderBottomColor: '#E5E7EB'
+  },
+  incompleteProfileHeader: {
+    backgroundColor: '#F3F4F6',
+    paddingHorizontal: 20,
+    paddingVertical: 24,
+    borderBottomWidth: 1,
+    borderBottomColor: '#E5E7EB',
+  },
+  incompleteProfileContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  incompleteProfileInfo: {
+    marginLeft: 16,
+    flex: 1,
   },
   userInfo: {
     flexDirection: 'row',
@@ -157,5 +227,53 @@ const styles = StyleSheet.create({
   },
   lifeLogContainer: {
     paddingRight: 20
-  }
+  },
+  redDot: {
+    position: 'absolute',
+    top: 0,
+    right: 0,
+    width: 14,
+    height: 14,
+    borderRadius: 7,
+    backgroundColor: '#F87171',
+    borderWidth: 2,
+    borderColor: '#FFF',
+  },
+  incompleteUserName: {
+    fontSize: 20,
+    fontFamily: 'Inter-Bold',
+    color: '#374151',
+    marginBottom: 2,
+  },
+  incompleteUserMeta: {
+    fontSize: 14,
+    fontFamily: 'Inter-Regular',
+    color: '#9CA3AF',
+    marginBottom: 2,
+  },
+  incompleteEditButton: {
+    backgroundColor: '#F3F4F6',
+    borderRadius: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    marginLeft: 12,
+    alignSelf: 'center',
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+  },
+  incompleteEditButtonText: {
+    fontSize: 14,
+    fontFamily: 'Inter-Medium',
+    color: '#6B7280',
+  },
+  editButton: {
+    backgroundColor: '#F3F4F6',
+    borderRadius: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    marginLeft: 12,
+    alignSelf: 'center',
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+  },
 });
