@@ -29,14 +29,15 @@ class FriendListResponse(BaseModel):
     user_id: int
     username: str
     icon: Optional[str] = None
-    latest_step: Optional[float] = None
+    age: Optional[int] = -1
 
 class FriendDetailResponse(BaseModel):
     user_id: int
+    icon: Optional[str] = None
     username: str
     age: int
     sex: Optional[bool] = None
-    latest_data: List[Dict[str, Any]]
+    vital_data: Optional[List[Dict[str, Any]]] = None
 
 class AddFriendRequest(BaseModel):
     friend_id: int
