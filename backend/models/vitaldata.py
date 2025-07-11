@@ -1,5 +1,6 @@
 from sqlalchemy import Column, Integer, Float, DateTime, ForeignKey
 from settings import Base
+from sqlalchemy.orm import relationship
 
 class VitalData(Base):
     __tablename__ = 'vitaldata'
@@ -9,6 +10,7 @@ class VitalData(Base):
     date = Column(DateTime, nullable=False)
     name_id = Column(Integer, ForeignKey('vitaldataname.id'), nullable=False)
     value = Column(Float, nullable=False)
+    vitaldataname = relationship("VitalDataName", back_populates="vitaldata")
 
     def __repr__(self):
         return (
