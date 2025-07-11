@@ -7,8 +7,6 @@ def send_otp_email(to_email: str, otp_code: str):
     password = settings.email_password
     subject = "あなたのワンタイムパスワード"
     body = f"あなたのワンタイムパスワードは: {otp_code} です。"
-    print("from_email:", from_email)
-    print(password)
     msg = MIMEText(body)
     msg["Subject"] = subject
     msg["From"] = from_email

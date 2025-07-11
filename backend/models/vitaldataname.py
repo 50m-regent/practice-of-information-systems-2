@@ -8,6 +8,7 @@ class VitalDataName(Base):
     id = Column(Integer, primary_key=True)
     name = Column(String, nullable=False)
     vitaldata = relationship("VitalData", back_populates="vitaldataname")
+    objective = relationship("Objective", back_populates="vitaldataname")
 
     def __repr__(self):
         return f"<VitalDataName(id={self.id}, name={self.name})>"
