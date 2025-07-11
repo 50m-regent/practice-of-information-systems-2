@@ -10,7 +10,7 @@ import base64
 
 router = APIRouter(prefix="/user", tags=["User"])
 
-@router.get("/profile/", response_model=ProfileResponse)
+@router.get("/profile", response_model=ProfileResponse)
 async def get_profile(current_user: User = Depends(get_current_user)):
     return ProfileResponse(
         icon=current_user.icon,
@@ -20,7 +20,7 @@ async def get_profile(current_user: User = Depends(get_current_user)):
         sex=current_user.sex
     )
 
-@router.put("/profile/")
+@router.put("/profile")
 async def update_profile(
     profile: ProfileUpdateRequest,
     current_user: User = Depends(get_current_user),
@@ -40,7 +40,7 @@ async def update_profile(
     db.refresh(current_user)
     return {"message": "OK"}
 
-@router.get("/settings/", response_model=SettingsResponse)
+@router.get("/settings", response_model=SettingsResponse)
 async def get_settings(current_user: User = Depends(get_current_user)):
     return SettingsResponse(
         icon=current_user.icon,

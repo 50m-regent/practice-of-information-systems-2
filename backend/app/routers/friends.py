@@ -13,7 +13,7 @@ from models.uservitalcategory import UserVitalCategory
 
 router = APIRouter(prefix="/friends", tags=["Friends"])
 
-@router.get("/", response_model=List[FriendListResponse])
+@router.get("", response_model=List[FriendListResponse])
 async def get_friends(current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     friends = []
     if current_user.friends:
@@ -21,11 +21,6 @@ async def get_friends(current_user: User = Depends(get_current_user), db: Sessio
         for friend_id in friend_ids:
             friend = db.query(User).filter(User.id == friend_id).first()
             if friend:
-                steps_data = db.query(VitalData).join(VitalDataName).filter(
-                    VitalDataName.name == "steps",
-                    VitalData.name_id == VitalDataName.id
-                ).order_by(VitalData.date.desc()).first()
-                
                 age = -1
                 if friend.date_of_birth:
                     today = datetime.now()
