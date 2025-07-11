@@ -13,7 +13,7 @@ from models.uservitalcategory import UserVitalCategory
 
 router = APIRouter(prefix="/friends", tags=["Friends"])
 
-@router.get("/", response_model=List[FriendListResponse])
+@router.get("", response_model=List[FriendListResponse])
 async def get_friends(current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     friends = []
     if current_user.friends:
