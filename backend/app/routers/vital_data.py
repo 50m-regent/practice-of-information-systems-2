@@ -10,6 +10,7 @@ from models.users import User
 from models.vitaldata import VitalData
 from models.vitaldataname import VitalDataName
 from models.uservitalcategory import UserVitalCategory
+from datetime import datetime, date
 
 router = APIRouter(prefix="/vitaldata", tags=["Vital Data"])
 
@@ -76,7 +77,8 @@ async def create_new_category(
 @router.get("/statistics", response_model=StatisticsResponse)
 async def get_statistics(
         vital_name: str,
-        age_group: Optional[int] = None,
+        start_age: int,
+        end_age: int,
         sex: Optional[bool] = None,
         current_user: User = Depends(get_current_user),
         db: Session = Depends(get_db)
@@ -85,14 +87,16 @@ async def get_statistics(
     if not vital_name_obj:
         raise HTTPException(status_code=404, detail="Vital data type not found")
 
+    current_date = date.today()
+    max_birth_date = date(current_date.year - start_age, current_date.month, current_date.day)
+    min_birth_date = date(current_date.year - end_age, current_date.month, current_date.day)
+
     base_filters = [
         VitalData.name_id == vital_name_obj.id,
-        UserVitalCategory.is_public == True
+        UserVitalCategory.is_public == True,
+        User.date_of_birth >= min_birth_date,
+        User.date_of_birth < max_birth_date,
     ]
-
-    if age_group is not None:
-        base_filters.append(User.age >= age_group)
-        base_filters.append(User.age < age_group + 10)
 
     if sex is not None:
         base_filters.append(User.sex == sex)
@@ -100,49 +104,38 @@ async def get_statistics(
     subquery = (
         db.query(
             VitalData.user_id,
-            func.max(VitalData.date).label("latest_date")
-        )
+            UserVitalCategory.is_accumulating,
+            func.case(
+                (UserVitalCategory.is_accumulating == True, func.current_date()), else_=func.max(VitalData.date)).label("target_date")
+            )
         .join(UserVitalCategory, VitalData.user_id == UserVitalCategory.user_id)
         .join(User, UserVitalCategory.user_id == User.id)
-        .filter(
-            *base_filters
-        )
-        .group_by(VitalData.user_id)
+        .filter(*base_filters)
+        .group_by(VitalData.user_id, UserVitalCategory.is_accumulating)
         .subquery()
     )
 
     VD = aliased(VitalData)
 
     avg_query = (
-        db.query(VD)
+        db.query(VD.user_id, subquery.c.is_accumulating, func.case(subquery.c.is_accumulating == True, func.sum(VD.value), else_=VD.value).label("calculated_value"))
         .join(UserVitalCategory, VD.user_id == UserVitalCategory.user_id)
         .join(User, UserVitalCategory.user_id == User.id)
         .join(subquery, and_(
             VD.user_id == subquery.c.user_id,
-            VD.date == subquery.c.latest_date
+            func.case(
+                (subquery.c.is_accumulating == True, func.date(VD.date) == subquery.c.target_date),
+                else_=VD.date == subquery.c.target_date
+            )
         ))
-        .filter(
-            *base_filters
-        )
+        .filter(*base_filters)
+        .group_by(VD.user_id, subquery.c.is_accumulating)
     )
     
-    if not avg_query:
-        average = -1
-    else:
-        average = avg_query.with_entities(func.avg(VD.value)).scalar()
-    
-    user_data = db.query(VitalData).filter(
-        VitalData.name_id == vital_name_obj.id
-    ).order_by(VitalData.date.desc()).first()
-    
-    your_value = user_data.value if user_data else -1
-    values = [avg_query.value for avg_query in avg_query.all()]
-    percentile = stats.percentileofscore(values, your_value, kind='rank') if values else -1
+    average = avg_query.with_entities(func.avg(avg_query.subquery().c.calculated_value)).scalar()
     
     return StatisticsResponse(
-        average=average,
-        your_value=your_value,
-        percentile=percentile
+        average=average
     )
 
 @router.get("/me", response_model=List[VitalDataResponse])

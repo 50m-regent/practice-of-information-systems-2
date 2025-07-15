@@ -12,6 +12,8 @@ from models.users import User
 from models.objective import Objective
 from models.vitaldata import VitalData
 from models.vitaldataname import VitalDataName
+from models.uservitalcategory import UserVitalCategory
+from sqlalchemy import func
 
 router = APIRouter(prefix="/objectives", tags=["Objectives"])
 
@@ -26,13 +28,59 @@ async def get_objectives(current_user: User = Depends(get_current_user), db: Ses
         if objective:
             friends = []
             for friend in friends_id:
-                data = db.query(VitalData).filter(VitalData.user_id == friend, VitalData.name_id == objective.id).order_by(VitalData.date.desc()).first()
-                if data:
-                    icon_base64 = db.query(User).filter(User.id == friend).first().icon
-                    friends.append({
-                        "friend_icon": icon_base64,
-                        "friend_info": data.value
-                    })
+                friend_category = db.query(UserVitalCategory).filter(
+                    UserVitalCategory.user_id == friend,
+                    UserVitalCategory.vital_id == objective.name_id
+                ).first()
+                
+                if friend_category:
+                    if friend_category.is_accumulating:
+                        total_value = db.query(func.sum(VitalData.value)).filter(
+                            VitalData.user_id == friend,
+                            VitalData.name_id == objective.name_id,
+                            VitalData.date >= objective.start_date,
+                            VitalData.date <= objective.end_date
+                        ).scalar()
+                        friend_value = total_value if total_value is not None else None
+                    else:
+                        latest_data = db.query(VitalData).filter(
+                            VitalData.user_id == friend,
+                            VitalData.name_id == objective.name_id,
+                            VitalData.date >= objective.start_date,
+                            VitalData.date <= objective.end_date
+                        ).order_by(VitalData.date.desc()).first()
+                        friend_value = latest_data.value if latest_data else None
+                    if friend_value is not None:
+                        friend_user = db.query(User).filter(User.id == friend).first()
+                        if friend_user:
+                            friends.append({
+                                "friend_icon": friend_user.icon,
+                                "friend_info": friend_value
+                            })
+
+            user_category = db.query(UserVitalCategory).filter(
+                UserVitalCategory.user_id == current_user.id,
+                UserVitalCategory.vital_id == objective.name_id
+            ).first()
+            
+            if not user_category:
+                my_value = None
+            elif user_category.is_accumulating:
+                my_total = db.query(func.sum(VitalData.value)).filter(
+                    VitalData.user_id == current_user.id,
+                    VitalData.name_id == objective.name_id,
+                    VitalData.date >= objective.start_date,
+                    VitalData.date <= objective.end_date
+                ).scalar()
+                my_value = my_total if my_total is not None else None
+            else:
+                my_latest = db.query(VitalData).filter(
+                    VitalData.user_id == current_user.id,
+                    VitalData.name_id == objective.name_id,
+                    VitalData.date >= objective.start_date,
+                    VitalData.date <= objective.end_date
+                ).order_by(VitalData.date.desc()).first()
+                my_value = my_latest.value if my_latest is not None else None
 
             result.append(ObjectiveResponse(
                 objective_id=objective.id,
@@ -40,7 +88,7 @@ async def get_objectives(current_user: User = Depends(get_current_user), db: Ses
                 start_date=objective.start_date,
                 end_date=objective.end_date,
                 objective_value=objective.value,
-                my_value=db.query(VitalData).filter(VitalData.user_id == current_user.id, VitalData.name_id == objective.name_id).order_by(VitalData.date.desc()).first().value,
+                my_value=my_value,
                 friends=friends
             ))
         
