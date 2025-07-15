@@ -12,6 +12,7 @@ from models.vitaldata import VitalData
 from models.vitaldataname import VitalDataName
 from models.objective import Objective
 from models.otpcodes import OTPCode
+from models.uservitalcategory import UserVitalCategory
 from typing import List, Dict, Any, Optional
 import json
 
@@ -52,8 +53,14 @@ class DatabaseManager:
         Returns:
             List[Dict[str, Any]]: バイタルデータ情報の辞書のリスト
         """
-        vital_data = self.session.query(VitalData).join(VitalDataName).all()
-        return [self._vital_data_to_dict(vd) for vd in vital_data]
+        vital_data = self.session.query(VitalData, UserVitalCategory).join(
+            VitalDataName, VitalData.name_id == VitalDataName.id
+        ).outerjoin(
+            UserVitalCategory, 
+            (UserVitalCategory.user_id == VitalData.user_id) & 
+            (UserVitalCategory.vital_id == VitalData.name_id)
+        ).all()
+        return [self._vital_data_to_dict(vd, uvc) for vd, uvc in vital_data]
     
     def get_all_objectives(self) -> List[Dict[str, Any]]:
         """
@@ -124,15 +131,15 @@ class DatabaseManager:
             'objective': user.objective
         }
     
-    def _vital_data_to_dict(self, vital_data: VitalData) -> Dict[str, Any]:
+    def _vital_data_to_dict(self, vital_data: VitalData, user_vital_category: Optional[UserVitalCategory] = None) -> Dict[str, Any]:
         return {
             'id': vital_data.id,
             'date': vital_data.date.isoformat(),
             'name_id': vital_data.name_id,
-            'name': vital_data.name.name if vital_data.name else None,
+            'name': vital_data.vitaldataname.name if vital_data.vitaldataname else None,
             'value': vital_data.value,
-            'is_accumulating': vital_data.is_accumulating,
-            'is_public': vital_data.is_public
+            'is_accumulating': user_vital_category.is_accumulating if user_vital_category else False,
+            'is_public': user_vital_category.is_public if user_vital_category else False
         }
     
     def _objective_to_dict(self, objective: Objective) -> Dict[str, Any]:
@@ -141,6 +148,6 @@ class DatabaseManager:
             'start_date': objective.start_date.isoformat(),
             'end_date': objective.end_date.isoformat(),
             'name_id': objective.name_id,
-            'name': objective.name.name if objective.name else None,
+            'name': objective.vitaldataname.name if objective.vitaldataname else None,
             'value': objective.value
         }
