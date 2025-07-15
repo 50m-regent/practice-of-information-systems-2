@@ -1,6 +1,7 @@
 from sqlalchemy import Column, Integer, Float, Boolean, DateTime, ForeignKey
 from sqlalchemy.orm import relationship
 from settings import Base
+from sqlalchemy.orm import relationship
 
 class VitalData(Base):
     __tablename__ = 'vitaldata'
@@ -10,11 +11,8 @@ class VitalData(Base):
     date = Column(DateTime, nullable=False)
     name_id = Column(Integer, ForeignKey('vitaldataname.id'), nullable=False)
     value = Column(Float, nullable=False)
-    is_accumulating = Column(Boolean, nullable=False)
-    is_public = Column(Boolean, nullable=False)
-    
-    # リレーションシップ
-    name = relationship("VitalDataName", back_populates="vital_data")
+
+    vitaldataname = relationship("VitalDataName", back_populates="vitaldata")
 
     def __repr__(self):
         return (
