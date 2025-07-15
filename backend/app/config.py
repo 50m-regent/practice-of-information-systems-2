@@ -9,6 +9,9 @@ class Settings(BaseSettings):
     otp_expire_minutes: int = 10
     email_address: str
     email_password: str
+    # email_address: str = "dummy@example.com"
+    # email_password: str = "dummy_password"
+    openai_api_key: str
 
     class Config:
         env_file = ".env"

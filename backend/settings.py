@@ -1,7 +1,12 @@
 # settings.py
 
+import os
+from dotenv import load_dotenv
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker, declarative_base
+
+# .envファイルを読み込む
+load_dotenv()
 
 DATABASE_URL = "sqlite:///./test.db"  # プロジェクトルート直下
 

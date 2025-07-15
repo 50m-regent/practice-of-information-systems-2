@@ -1,6 +1,7 @@
 from sqlalchemy import Column, Integer, String, Boolean, DateTime, LargeBinary, Float
 from sqlalchemy.dialects.sqlite import JSON
 from sqlalchemy.ext.mutable import MutableList
+from sqlalchemy.orm import relationship
 from settings import Base
 from typing import Optional, List
 
@@ -16,6 +17,9 @@ class User(Base):
     objective: Optional[List[int]] = Column(MutableList.as_mutable(JSON), nullable=True)
     icon = Column(LargeBinary, nullable=True)
     height = Column(Float, nullable=True)
+
+    # リレーションシップ
+    chat_conversations = relationship("ChatConversation", back_populates="user", cascade="all, delete-orphan")
 
     def __repr__(self):
         return (
