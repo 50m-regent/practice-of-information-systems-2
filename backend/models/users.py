@@ -18,8 +18,8 @@ class User(Base):
     icon = Column(LargeBinary, nullable=True)
     height = Column(Float, nullable=True)
 
-    # リレーションシップ
-    chat_conversations = relationship("ChatConversation", back_populates="user", cascade="all, delete-orphan")
+    # リレーションシップ（文字列で指定してlazy loading）
+    chat_conversations = relationship("ChatConversation", back_populates="user", cascade="all, delete-orphan", lazy="dynamic")
 
     def __repr__(self):
         return (

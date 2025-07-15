@@ -35,3 +35,22 @@ def get_db():
         yield db
     finally:
         db.close()
+
+# SQLAlchemyのリレーションシップ解決のため、全てのモデルをインポート
+def setup_models():
+    """全てのモデルをインポートしてリレーションシップを解決する"""
+    try:
+        from models.users import User
+        from models.vitaldata import VitalData
+        from models.vitaldataname import VitalDataName
+        from models.objective import Objective
+        from models.otpcodes import OTPCode
+        from models.uservitalcategory import UserVitalCategory
+        from models.chat_conversation import ChatConversation, ChatMessage
+        return True
+    except Exception as e:
+        print(f"モデルのインポートでエラーが発生しました: {e}")
+        return False
+
+# アプリケーション起動時にモデルを設定
+setup_models()

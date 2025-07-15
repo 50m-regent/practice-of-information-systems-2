@@ -7,14 +7,17 @@ Vector Store用のデータ形式に変換する機能を提供します。
 
 from sqlalchemy.orm import Session
 from settings import SessionLocal
+from typing import List, Dict, Any, Optional
+import json
+
+# 全てのモデルをインポート（リレーションシップの解決のため）
 from models.users import User
 from models.vitaldata import VitalData
 from models.vitaldataname import VitalDataName
 from models.objective import Objective
 from models.otpcodes import OTPCode
 from models.uservitalcategory import UserVitalCategory
-from typing import List, Dict, Any, Optional
-import json
+from models.chat_conversation import ChatConversation, ChatMessage
 
 
 class DatabaseManager:
