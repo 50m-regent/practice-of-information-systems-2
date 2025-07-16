@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, StyleSheet, Dimensions, Text, TouchableOpacity } from 'react-native';
+import { View, StyleSheet, Dimensions, Text, TouchableOpacity, Modal, TextInput } from 'react-native';
 import { LineChart, BarChart } from 'react-native-chart-kit';
 
 // コンポーネントが受け取るpropsの型を定義
@@ -25,9 +25,26 @@ const screenWidth = Dimensions.get('window').width;
 export function ChartCard({ type, data, title, currentValue }: ChartCardProps) {
   // 「フレンドに公開」ボタンの状態を管理
   const [isShared, setIsShared] = useState(false);
+  const [isModalVisible, setIsModalVisible] = useState(false);
+  const [inputValue, setInputValue] = useState('');
 
   const handleSharePress = () => {
     setIsShared(!isShared);
+  };
+
+  const handleAddData = () => {
+    setIsModalVisible(true);
+  };
+
+  const handleModalClose = () => {
+    setIsModalVisible(false);
+    setInputValue('');
+  };
+
+  const handleDataSubmit = () => {
+    // For demo, just close modal. In real app, update chart data here.
+    setIsModalVisible(false);
+    setInputValue('');
   };
 
   // 折れ線グラフ用の設定
@@ -69,7 +86,7 @@ export function ChartCard({ type, data, title, currentValue }: ChartCardProps) {
             </Text>
           </TouchableOpacity>
         </View>
-        <TouchableOpacity style={styles.addDataButton}>
+        <TouchableOpacity style={styles.addDataButton} onPress={handleAddData}>
           <Text style={styles.addDataButtonText}>データの追加</Text>
         </TouchableOpacity>
       </View>
@@ -114,6 +131,34 @@ export function ChartCard({ type, data, title, currentValue }: ChartCardProps) {
           />
         )}
       </View>
+      <Modal
+        visible={isModalVisible}
+        transparent
+        animationType="fade"
+        onRequestClose={handleModalClose}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContainer}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>{title}にデータを追加</Text>
+              <TouchableOpacity onPress={handleModalClose} style={styles.modalClose}>
+                <Text style={{ fontSize: 28, color: '#888' }}>×</Text>
+              </TouchableOpacity>
+            </View>
+            <TextInput
+              style={styles.modalInput}
+              placeholder="値"
+              placeholderTextColor="#888"
+              value={inputValue}
+              onChangeText={setInputValue}
+              keyboardType="numeric"
+            />
+            <TouchableOpacity style={styles.modalButton} onPress={handleDataSubmit}>
+              <Text style={styles.modalButtonText}>データを追加</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -210,5 +255,72 @@ const styles = StyleSheet.create({
   },
   chart: {
     // グラフ自体のスタイル調整
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(230,231,238,0.75)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  modalContainer: {
+    width: 320,
+    backgroundColor: '#E6E7EE',
+    borderRadius: 12,
+    borderWidth: 0.5,
+    borderColor: '#D2D5E3',
+    padding: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 2, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  modalTitle: {
+    fontFamily: 'Noto Sans JP',
+    fontWeight: 'bold',
+    fontSize: 18,
+    color: '#565869',
+  },
+  modalClose: {
+    padding: 4,
+  },
+  modalInput: {
+    backgroundColor: '#E6E7EE',
+    borderWidth: 0.5,
+    borderColor: '#D2D5E3',
+    borderRadius: 8,
+    fontSize: 16,
+    color: '#565869',
+    padding: 12,
+    marginBottom: 16,
+    shadowColor: '#fff',
+    shadowOffset: { width: -2, height: -2 },
+    shadowOpacity: 0.5,
+    shadowRadius: 4,
+  },
+  modalButton: {
+    backgroundColor: '#E6E7EE',
+    borderWidth: 0.5,
+    borderColor: '#D2D5E3',
+    borderRadius: 8,
+    paddingVertical: 14,
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 2, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 8,
+    elevation: 2,
+  },
+  modalButtonText: {
+    fontFamily: 'Noto Sans JP',
+    fontWeight: 'bold',
+    fontSize: 16,
+    color: '#565869',
   },
 });

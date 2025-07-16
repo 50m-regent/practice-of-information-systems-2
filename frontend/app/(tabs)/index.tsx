@@ -8,6 +8,8 @@ import { GoalCard } from '@/components/GoalCard';
 // ChartCardコンポーネントをインポートします
 import { ChartCard } from '@/components/ChartCard';
 import { currentUser, mockGoals, mockFriends } from '@/data/mockData';
+import { ProfileEditModal } from '@/components/ProfileEditModal';
+import { useState } from 'react';
 
 // 血圧グラフ用のサンプルデータ
 const mockBloodPressureData = {
@@ -42,9 +44,16 @@ const mockStepsData = {
 
 export default function HomeScreen() {
   const age = new Date().getFullYear() - new Date(currentUser.dateOfBirth).getFullYear();
+  const [editModalVisible, setEditModalVisible] = useState(false);
+  const [user, setUser] = useState(currentUser);
 
   const handleAddGoal = () => {
     router.push('/add-goal');
+  };
+
+  const handleProfileSave = (updatedUser: typeof currentUser) => {
+    setUser(updatedUser);
+    setEditModalVisible(false);
   };
 
   return (
@@ -52,34 +61,47 @@ export default function HomeScreen() {
       <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
         {/* User Profile Header */}
         <View style={styles.header}>
-          <View style={styles.userInfo}>
-            <UserAvatar uri={currentUser.avatar} size={60} />
-            <View style={styles.userDetails}>
-              <Text style={styles.userName}>{currentUser.name}</Text>
-              <View style={styles.userMeta}>
-                <Calendar size={14} color="#6B7280" />
-                <Text style={styles.userAge}>Age {age}</Text>
-                <Text style={styles.userStats}>
-                  {currentUser.height}cm • {currentUser.weight}kg
-                </Text>
+          <View style={styles.userInfoRow}>
+            <View style={styles.userInfoLeft}>
+              <UserAvatar uri={user.avatar} size={64} />
+              <View style={styles.userDetailsColumn}>
+                <View style={styles.userNameRow}>
+                  <Text style={styles.userName}>{user.name}</Text>
+                  <View style={styles.genderIndicator} />
+                </View>
+                <Text style={styles.userBirth}>{user.dateOfBirth.replace(/-/g, '年').replace(/(\d{4})年(\d{2})年(\d{2})/, '$1年$2月$3日生まれ')}</Text>
+                <Text style={styles.userHeight}>{user.height}cm</Text>
               </View>
             </View>
+            <TouchableOpacity
+              style={styles.editProfileButton}
+              onPress={() => setEditModalVisible(true)}
+              activeOpacity={0.7}
+            >
+              <Text style={styles.editProfileButtonText}>変更</Text>
+            </TouchableOpacity>
           </View>
         </View>
 
         {/* Goals Section */}
         <View style={styles.section}>
-          <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>Goals</Text>
-            <TouchableOpacity style={styles.addButton} onPress={handleAddGoal}>
-              <Plus size={20} color="#3B82F6" />
-              <Text style={styles.addButtonText}>Add Goal</Text>
+          <View style={styles.objectivesCard}>
+            <Text style={styles.objectivesTitle}>目標</Text>
+            {mockGoals.map(goal => (
+              <View key={goal.id} style={styles.objectiveItem}>
+                <View style={styles.objectiveBarCard}>
+                  <GoalCard goal={goal} friends={mockFriends} />
+                </View>
+                <View style={styles.objectiveInfoRow}>
+                  <Text style={styles.objectiveName}>{goal.title}</Text>
+                  <Text style={styles.objectivePeriod}>{getGoalPeriod(goal)}</Text>
+                </View>
+              </View>
+            ))}
+            <TouchableOpacity style={styles.addGoalButton} onPress={handleAddGoal}>
+              <Text style={styles.addGoalButtonText}>目標を追加</Text>
             </TouchableOpacity>
           </View>
-          
-          {mockGoals.map(goal => (
-            <GoalCard key={goal.id} goal={goal} friends={mockFriends} />
-          ))}
         </View>
 
         {/* Life Log Section */}
@@ -101,13 +123,28 @@ export default function HomeScreen() {
             data={mockStepsData}
           />
 
-          <TouchableOpacity style={styles.addLogButton}>
+          <TouchableOpacity style={styles.addLogButton} onPress={() => router.push('/add-data')}>
             <Text style={styles.addLogButtonText}>ライフログを追加</Text>
           </TouchableOpacity>
         </View>
+        <ProfileEditModal
+          visible={editModalVisible}
+          user={user}
+          onClose={() => setEditModalVisible(false)}
+          onSave={handleProfileSave}
+        />
       </ScrollView>
     </SafeAreaView>
   );
+}
+
+// Add helper function for period
+type GoalType = typeof mockGoals[0];
+function getGoalPeriod(goal: GoalType) {
+  const start = new Date(goal.createdAt);
+  const end = new Date(start);
+  end.setMonth(start.getMonth() + 3);
+  return `${start.getFullYear()}年${start.getMonth() + 1}月${start.getDate()}日 ~ ${end.getFullYear()}年${end.getMonth() + 1}月${end.getDate()}日`;
 }
 
 const styles = StyleSheet.create({
@@ -134,10 +171,14 @@ const styles = StyleSheet.create({
     flex: 1
   },
   userName: {
-    fontSize: 24,
-    fontFamily: 'Inter-Bold',
-    color: '#111827',
-    marginBottom: 4
+    fontFamily: 'Noto Sans JP',
+    fontWeight: '900', // bolder
+    fontSize: 22, // even bigger
+    lineHeight: 26,
+    letterSpacing: 0.03,
+    color: '#222', // true black look
+    width: 80,
+    height: 26,
   },
   userMeta: {
     flexDirection: 'row',
@@ -187,18 +228,210 @@ const styles = StyleSheet.create({
     fontFamily: 'Inter-Medium',
     color: '#3B82F6'
   },
-  addLogButton: {
-    backgroundColor: '#FFFFFF',
-    paddingVertical: 16,
-    borderRadius: 16,
+  addGoalButton: {
+    width: 345,
+    height: 32,
+    backgroundColor: '#F3F4F6',
+    borderWidth: 0.5,
+    borderColor: '#D2D5E3',
+    borderRadius: 8,
+    flexDirection: 'row',
+    justifyContent: 'center',
     alignItems: 'center',
-    marginTop: 12,
-    borderWidth: 1,
-    borderColor: '#E5E7EB'
+    alignSelf: 'center',
+    // No marginTop, flush with content
+    // Neumorphic shadow (optional):
+    shadowColor: '#000',
+    shadowOffset: { width: 2, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 4,
+    elevation: 1,
+  },
+  addGoalButtonText: {
+    fontFamily: 'Noto Sans JP',
+    fontWeight: '500',
+    fontSize: 12,
+    lineHeight: 14,
+    color: '#565869',
+    textAlign: 'center',
+  },
+  addLogButton: {
+    width: '100%', // fill parent, align with charts
+    height: 40, // slightly larger
+    backgroundColor: '#F3F4F6',
+    borderWidth: 0.5,
+    borderColor: '#D2D5E3',
+    borderRadius: 8,
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    alignSelf: 'stretch',
+    shadowColor: '#000',
+    shadowOffset: { width: 2, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 4,
+    elevation: 1,
   },
   addLogButtonText: {
+    fontFamily: 'Noto Sans JP',
+    fontWeight: '500',
+    fontSize: 14,
+    lineHeight: 18,
+    color: '#565869',
+    textAlign: 'center',
+  },
+  userInfoRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingTop: 16,
+    width: 361,
+    height: 80,
+    gap: 8,
+  },
+  userInfoLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    width: 194,
+    height: 64,
+  },
+  userDetailsColumn: {
+    flexDirection: 'column',
+    justifyContent: 'center',
+    alignItems: 'flex-start',
+    gap: 4,
+    width: 122,
+    height: 55,
+    marginLeft: 8,
+  },
+  userNameRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    width: 90,
+    height: 19,
+  },
+  userName: {
+    fontFamily: 'Noto Sans JP',
+    fontWeight: '700',
     fontSize: 16,
-    fontFamily: 'Inter-Medium',
-    color: '#374151'
-  }
+    lineHeight: 19,
+    letterSpacing: 0.03,
+    color: '#565869',
+    width: 66,
+    height: 19,
+  },
+  genderIndicator: {
+    width: 16,
+    height: 16,
+    backgroundColor: '#7086DB',
+    borderWidth: 0.5,
+    borderColor: '#D2D5E3',
+    borderRadius: 8,
+  },
+  userBirth: {
+    fontFamily: 'Noto Sans JP',
+    fontWeight: '400',
+    fontSize: 12,
+    lineHeight: 14,
+    letterSpacing: 0.02,
+    color: '#565869',
+    width: 122,
+    height: 14,
+  },
+  userHeight: {
+    fontFamily: 'Noto Sans JP',
+    fontWeight: '400',
+    fontSize: 12,
+    lineHeight: 14,
+    letterSpacing: 0.02,
+    color: '#565869',
+    width: 39,
+    height: 14,
+  },
+  editProfileButton: {
+    width: 70, // bigger
+    height: 32, // bigger
+    backgroundColor: '#F3F4F6',
+    borderWidth: 0.5,
+    borderColor: '#D2D5E3',
+    borderRadius: 12,
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 12,
+    shadowColor: '#000',
+    shadowOffset: { width: 2, height: 2 },
+    shadowOpacity: 0.15,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  editProfileButtonText: {
+    fontFamily: 'Noto Sans JP',
+    fontWeight: '400',
+    fontSize: 14, // bigger
+    lineHeight: 18,
+    color: '#565869',
+    textAlign: 'center',
+    width: 40,
+    height: 18,
+  },
+  objectivesCard: {
+    backgroundColor: '#F3F4F6',
+    borderRadius: 12,
+    padding: 8,
+    gap: 8,
+    width: '100%',
+    alignSelf: 'stretch',
+    marginBottom: 16,
+  },
+  objectivesTitle: {
+    fontFamily: 'Noto Sans JP',
+    fontWeight: 'bold',
+    fontSize: 20,
+    lineHeight: 24,
+    letterSpacing: 0.03,
+    color: '#111827',
+    marginBottom: 8,
+  },
+  objectiveItem: {
+    flexDirection: 'column',
+    alignItems: 'flex-start',
+    gap: 2,
+    marginBottom: 8,
+  },
+  objectiveBarCard: {
+    backgroundColor: '#F3F4F6',
+    borderWidth: 0.5,
+    borderColor: '#D2D5E3',
+    borderRadius: 13,
+    padding: 4,
+    width: 345,
+    alignSelf: 'center',
+  },
+  objectiveInfoRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    width: 345,
+    paddingHorizontal: 0,
+    gap: 16,
+    marginTop: 2,
+    marginBottom: 2,
+  },
+  objectiveName: {
+    fontFamily: 'Noto Sans JP',
+    fontWeight: '700',
+    fontSize: 10,
+    lineHeight: 12,
+    color: '#565869',
+  },
+  objectivePeriod: {
+    fontFamily: 'Noto Sans JP',
+    fontWeight: '400',
+    fontSize: 10,
+    lineHeight: 12,
+    color: '#565869',
+  },
 });
