@@ -96,11 +96,11 @@ export default function HomeScreen() {
                   <Text style={styles.objectiveName}>{goal.title}</Text>
                   <Text style={styles.objectivePeriod}>{getGoalPeriod(goal)}</Text>
                 </View>
-              </View>
-            ))}
-            <TouchableOpacity style={styles.addGoalButton} onPress={handleAddGoal}>
-              <Text style={styles.addGoalButtonText}>目標を追加</Text>
-            </TouchableOpacity>
+          </View>
+          ))}
+          <TouchableOpacity style={styles.addGoalButton} onPress={handleAddGoal}>
+            <Text style={styles.addGoalButtonText}>目標を追加</Text>
+          </TouchableOpacity>
           </View>
         </View>
 
@@ -177,7 +177,7 @@ const styles = StyleSheet.create({
     lineHeight: 26,
     letterSpacing: 0.03,
     color: '#222', // true black look
-    width: 80,
+    width: 120, // was 80, now longer
     height: 26,
   },
   userMeta: {
@@ -337,7 +337,7 @@ const styles = StyleSheet.create({
     lineHeight: 14,
     letterSpacing: 0.02,
     color: '#565869',
-    width: 122,
+    width: 160, // was 122, now longer
     height: 14,
   },
   userHeight: {
