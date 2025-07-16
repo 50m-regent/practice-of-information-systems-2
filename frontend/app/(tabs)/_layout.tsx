@@ -1,5 +1,6 @@
 import { Tabs } from 'expo-router';
 import { Chrome as Home, Users, ChartBar as BarChart3, MessageCircle } from 'lucide-react-native';
+import { Image } from 'react-native';
 
 export default function TabLayout() {
   return (
@@ -25,37 +26,53 @@ export default function TabLayout() {
       <Tabs.Screen
         name="index"
         options={{
-          title: 'Home',
-          tabBarIcon: ({ size, color }) => (
-            <Home size={size} color={color} />
-          )
+          tabBarIcon: ({ focused }) => (
+            <Image
+              source={require('../../assets/images/tab-profile.png')}
+              style={{ width: 22, height: 22, tintColor: focused ? '#3B82F6' : '#6B7280' }}
+              resizeMode="contain"
+            />
+          ),
+          tabBarShowLabel: false
         }}
       />
       <Tabs.Screen
         name="friends"
         options={{
-          title: 'Friends',
-          tabBarIcon: ({ size, color }) => (
-            <Users size={size} color={color} />
-          )
+          tabBarIcon: ({ focused }) => (
+            <Image
+              source={require('../../assets/images/tab-friends.png')}
+              style={{ width: 22, height: 22, tintColor: focused ? '#3B82F6' : '#6B7280' }}
+              resizeMode="contain"
+            />
+          ),
+          tabBarShowLabel: false
         }}
       />
       <Tabs.Screen
         name="stats"
         options={{
-          title: 'Stats',
-          tabBarIcon: ({ size, color }) => (
-            <BarChart3 size={size} color={color} />
-          )
+          tabBarIcon: ({ focused }) => (
+            <Image
+              source={require('../../assets/images/tab-stats.png')}
+              style={{ width: 22, height: 22, tintColor: focused ? '#3B82F6' : '#6B7280' }}
+              resizeMode="contain"
+            />
+          ),
+          tabBarShowLabel: false
         }}
       />
       <Tabs.Screen
         name="chat"
         options={{
-          title: 'AI Chat',
-          tabBarIcon: ({ size, color }) => (
-            <MessageCircle size={size} color={color} />
-          )
+          tabBarIcon: ({ focused }) => (
+            <Image
+              source={require('../../assets/images/tab-chat.png')}
+              style={{ width: 22, height: 22, tintColor: focused ? '#3B82F6' : '#6B7280' }}
+              resizeMode="contain"
+            />
+          ),
+          tabBarShowLabel: false
         }}
       />
     </Tabs>
