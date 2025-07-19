@@ -1,7 +1,7 @@
 from fastapi import APIRouter, HTTPException, Depends
 from collections import defaultdict
 from sqlalchemy.orm import Session, aliased
-from sqlalchemy import func, and_
+from sqlalchemy import func, and_, case
 from typing import List, Optional
 from app.schemas.vital_data import CreateCategoryRequest, RegisterRequest, VitalDataCategoryResponse, VitalDataResponse, StatisticsResponse, LifeLogGroupedResponse, VitalPoint
 from app.utils.auth import get_current_user
@@ -88,51 +88,78 @@ async def get_statistics(
         raise HTTPException(status_code=404, detail="Vital data type not found")
 
     current_date = date.today()
-    max_birth_date = date(current_date.year - start_age, current_date.month, current_date.day)
-    min_birth_date = date(current_date.year - end_age, current_date.month, current_date.day)
+    max_birth_date = datetime(current_date.year - start_age, current_date.month, current_date.day)
+    min_birth_date = datetime(current_date.year - end_age, current_date.month, current_date.day)
 
-    base_filters = [
-        VitalData.name_id == vital_name_obj.id,
-        UserVitalCategory.is_public == True,
-        User.date_of_birth >= min_birth_date,
-        User.date_of_birth < max_birth_date,
-    ]
-
-    if sex is not None:
-        base_filters.append(User.sex == sex)
-    
-    subquery = (
+    # 基本クエリ: 条件に合うユーザーとカテゴリ設定を取得
+    user_categories = (
         db.query(
-            VitalData.user_id,
-            UserVitalCategory.is_accumulating,
-            func.case(
-                (UserVitalCategory.is_accumulating == True, func.current_date()), else_=func.max(VitalData.date)).label("target_date")
-            )
-        .join(UserVitalCategory, VitalData.user_id == UserVitalCategory.user_id)
-        .join(User, UserVitalCategory.user_id == User.id)
-        .filter(*base_filters)
-        .group_by(VitalData.user_id, UserVitalCategory.is_accumulating)
-        .subquery()
+            User.id.label("user_id"),
+            UserVitalCategory.is_accumulating.label("is_accumulating")
+        )
+        .join(UserVitalCategory, User.id == UserVitalCategory.user_id)
+        .filter(
+            UserVitalCategory.vital_id == vital_name_obj.id,
+            UserVitalCategory.is_public == True,
+            User.date_of_birth >= min_birth_date,
+            User.date_of_birth < max_birth_date
+        )
     )
-
-    VD = aliased(VitalData)
-
-    avg_query = (
-        db.query(VD.user_id, subquery.c.is_accumulating, func.case(subquery.c.is_accumulating == True, func.sum(VD.value), else_=VD.value).label("calculated_value"))
-        .join(UserVitalCategory, VD.user_id == UserVitalCategory.user_id)
-        .join(User, UserVitalCategory.user_id == User.id)
-        .join(subquery, and_(
-            VD.user_id == subquery.c.user_id,
-            func.case(
-                (subquery.c.is_accumulating == True, func.date(VD.date) == subquery.c.target_date),
-                else_=VD.date == subquery.c.target_date
-            )
-        ))
-        .filter(*base_filters)
-        .group_by(VD.user_id, subquery.c.is_accumulating)
-    )
+  
+    if sex is not None:
+        user_categories = user_categories.filter(User.sex == sex)
     
-    average = avg_query.with_entities(func.avg(avg_query.subquery().c.calculated_value)).scalar()
+    user_categories = user_categories.all()
+    print("User categories query:", user_categories)  # デバッグ用ログ出力
+    if not user_categories:
+        return StatisticsResponse(average=None)
+    
+    # 各ユーザーの計算値を取得
+    calculated_values = []
+    
+    for user_id, is_accumulating in user_categories:
+        if is_accumulating:
+            # 累積の場合：最新日付の全ての値の合計
+            latest_date = (
+                db.query(func.max(VitalData.date))
+                .filter(
+                    VitalData.user_id == user_id,
+                    VitalData.name_id == vital_name_obj.id
+                )
+                .scalar()
+            )
+            
+            if latest_date:
+                total_value = (
+                    db.query(func.sum(VitalData.value))
+                    .filter(
+                        VitalData.user_id == user_id,
+                        VitalData.name_id == vital_name_obj.id,
+                        func.date(VitalData.date) == func.date(latest_date)
+                    )
+                    .scalar()
+                )
+                if total_value is not None:
+                    calculated_values.append(total_value)
+        else:
+            # 非累積の場合：最新の値
+            latest_value = (
+                db.query(VitalData.value)
+                .filter(
+                    VitalData.user_id == user_id,
+                    VitalData.name_id == vital_name_obj.id
+                )
+                .order_by(VitalData.date.desc())
+                .first()
+            )
+            if latest_value:
+                calculated_values.append(latest_value[0])
+    
+    # 平均値を計算
+    if calculated_values:
+        average = sum(calculated_values) / len(calculated_values)
+    else:
+        average = None
     
     return StatisticsResponse(
         average=average
