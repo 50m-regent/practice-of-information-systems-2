@@ -3,7 +3,7 @@
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker, declarative_base
 
-DATABASE_URL = "sqlite:///./db.sqlite3"  # プロジェクトルート直下
+DATABASE_URL = "sqlite:///./test.db"  # プロジェクトルート直下
 
 # Alembic でも使う engine
 engine = create_engine(

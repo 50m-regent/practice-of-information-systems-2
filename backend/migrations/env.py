@@ -12,6 +12,7 @@ import models.otpcodes  # noqa: F401
 import models.vitaldataname  # noqa: F401
 import models.vitaldata  # noqa: F401
 import models.objective  # noqa: F401
+import models.uservitalcategory  # noqa: F401
 
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.
