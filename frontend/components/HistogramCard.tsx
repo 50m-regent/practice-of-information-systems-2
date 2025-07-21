@@ -1,10 +1,11 @@
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 
-// コンポーネントが受け取るpropsの型定義
+
 interface CustomHistogramProps {
   title: string;
-  averageValue: number;
+  displayLabel: string; 
+  displayValue: number;
   data: number[];
   labels: string[];
   baseColor: string;
@@ -14,7 +15,8 @@ interface CustomHistogramProps {
 
 export function CustomHistogram({
   title,
-  averageValue,
+  displayLabel, 
+  displayValue, 
   data,
   labels,
   baseColor,
@@ -30,35 +32,31 @@ export function CustomHistogram({
 
   return (
     <View style={styles.cardContainer}>
-      {/* ヘッダー */}
       <View style={styles.header}>
-        <Text style={styles.title}>{title}</Text>
-        <Text style={styles.averageValue}>
-          平均: {Math.round(averageValue).toLocaleString()}
-        </Text>
+        <View style={styles.valueContainer}>
+          <Text style={styles.displayLabel}>{displayLabel}: </Text>
+          <Text style={styles.displayValue}>
+            {displayValue.toLocaleString()}
+          </Text>
+        </View>
       </View>
 
       <View style={styles.chartContainer}>
-        {/* Y軸ラベル */}
         <View style={styles.yAxisContainer}>
           {yAxisLabels.map((label) => (
             <Text key={label} style={styles.yAxisLabel}>{label}</Text>
           ))}
         </View>
 
-        {/* グラフ本体 */}
         <View style={styles.plotArea}>
-          {/* グリッド線 */}
           {yAxisLabels.map((label, index) => (
             <View key={index} style={styles.gridLine} />
           ))}
 
-          {/* 棒グラフ */}
           <View style={styles.barContainer}>
             {data.map((value, index) => {
               const barHeight = (value / yAxisMax) * 100;
               const isHighlighted = index === highlightIndex;
-              // 各棒の幅をデータ数に応じて動的に計算
               const barWidth = 100 / data.length;
               return (
                 <View
@@ -78,7 +76,6 @@ export function CustomHistogram({
         </View>
       </View>
 
-      {/* X軸ラベル */}
       <View style={styles.xAxisContainer}>
         {labels.map((label) => (
           <Text key={label} style={styles.xAxisLabel}>{label}</Text>
@@ -105,14 +102,18 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     marginBottom: 24,
   },
-  title: {
+  displayLabel: {
     fontSize: 14,
-    fontFamily: 'Inter-Regular',
+    fontFamily: 'Inter-Bold',
     color: '#6B7280',
     marginBottom: 4,
   },
-  averageValue: {
-    fontSize: 22,
+  valueContainer: {
+    flexDirection: 'row',
+    alignItems: 'baseline', 
+  },
+  displayValue: {
+    fontSize: 14,
     fontFamily: 'Inter-Bold',
     color: '#111827',
   },
@@ -150,11 +151,10 @@ const styles = StyleSheet.create({
     alignItems: 'flex-end',
   },
   bar: {
-    // ★ 修正点: 枠線を追加
-    borderRightWidth: 1.5, // 右側の枠線のみ追加して線の重複を防ぐ
-    borderLeftWidth: 1.5,
-    borderColor: 'rgba(255, 255, 255, 0.5)', // 半透明の白で自然な区切り線に
-    borderRadius: 4, // 角を四角くする
+    borderRightWidth: 1,
+    borderLeftWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.5)',
+    borderRadius: 2,
   },
   xAxisContainer: {
     flexDirection: 'row',
