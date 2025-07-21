@@ -39,7 +39,7 @@ class SearchManager:
     def _set_demo_user(self):
         """デモ用のユーザーを設定"""
         try:
-            print("DEBUG: _set_demo_user開始")
+            # print("DEBUG: _set_demo_user開始")
             from settings import get_db
             from models.users import User
             
@@ -47,18 +47,18 @@ class SearchManager:
             
             # とりあえずuser_id=3のユーザーを取得（デモ用）
             user = session.query(User).filter(User.id == 3).first()
-            print(f"DEBUG: クエリ結果のuser = {user}")
+            # print(f"DEBUG: クエリ結果のuser = {user}")
             if user:
                 self.current_user = user
                 print(f"デモユーザー設定: {user.username} (ID: {user.id})")
-                print(f"DEBUG: self.current_user = {self.current_user}")
+                # print(f"DEBUG: self.current_user = {self.current_user}")
             else:
                 print("警告: デモユーザー（ID: 3）が見つかりません")
             session.close()
         except Exception as e:
             print(f"デモユーザー設定エラー: {e}")
-            import traceback
-            traceback.print_exc()
+            # import traceback
+            # traceback.print_exc()
     
     def search(self, query: str, context: str = "") -> Dict[str, Any]:
         try:
@@ -161,12 +161,12 @@ class SearchManager:
                             tool_name = item.name
                             tool_args = json.loads(item.arguments)
                             
-                            print(f"DEBUG: Executing tool: {tool_name} with args: {tool_args}")
+                            # print(f"DEBUG: Executing tool: {tool_name} with args: {tool_args}")
                             
                             # Tool callingを実行
                             result = asyncio.run(self._execute_function_call(tool_name, tool_args))
                             
-                            print(f"DEBUG: Tool execution result: {result}")
+                            # print(f"DEBUG: Tool execution result: {result}")
                             
                             function_results.append({
                                 "function_name": tool_name,
@@ -181,12 +181,12 @@ class SearchManager:
                             tool_name = content.tool_call.name
                             tool_args = json.loads(content.tool_call.arguments)
                             
-                            print(f"DEBUG: Executing tool: {tool_name} with args: {tool_args}")
+                            # print(f"DEBUG: Executing tool: {tool_name} with args: {tool_args}")
                             
                             # Tool callingを実行
                             result = asyncio.run(self._execute_function_call(tool_name, tool_args))
                             
-                            print(f"DEBUG: Tool execution result: {result}")
+                            # print(f"DEBUG: Tool execution result: {result}")
                             
                             function_results.append({
                                 "function_name": tool_name,
@@ -194,12 +194,12 @@ class SearchManager:
                                 "result": result
                             })
             
-            print(f"DEBUG: Total function calls processed: {len(function_results)}")
+            # print(f"DEBUG: Total function calls processed: {len(function_calls)}")
                             
         except Exception as e:
             print(f"Function calling処理エラー: {e}")
-            import traceback
-            traceback.print_exc()
+            # import traceback
+            # traceback.print_exc()
             function_results.append({
                 "error": f"Function calling処理エラー: {str(e)}"
             })
@@ -209,12 +209,12 @@ class SearchManager:
     async def _execute_function_call(self, function_name: str, arguments: Dict[str, Any]) -> Dict[str, Any]:
         """Function callingを実行"""
         try:
-            print(f"DEBUG: current_user = {self.current_user}")
+            # print(f"DEBUG: current_user = {self.current_user}")
             if not self.current_user:
                 # ユーザーが設定されていない場合、再度設定を試す
-                print("DEBUG: current_userがNone, 再設定を試します")
+                # print("DEBUG: current_userがNone, 再設定を試します")
                 self._set_demo_user()
-                print(f"DEBUG: 再設定後のcurrent_user = {self.current_user}")
+                # print(f"DEBUG: 再設定後のcurrent_user = {self.current_user}")
                 
                 if not self.current_user:
                     return {
