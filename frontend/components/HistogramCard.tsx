@@ -2,6 +2,7 @@ import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 
 
+
 interface CustomHistogramProps {
   title: string;
   displayLabel: string; 

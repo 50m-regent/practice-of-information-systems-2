@@ -5,6 +5,7 @@ import { router, useLocalSearchParams } from 'expo-router';
 import { ArrowLeft } from 'lucide-react-native';
 import { CustomHistogram } from '@/components/HistogramCard';
 
+
 // --- モックデータとロジック ---
 
 const currentUser = {
