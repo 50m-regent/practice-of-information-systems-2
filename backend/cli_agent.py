@@ -89,6 +89,21 @@ class CLIAgent:
                 print("🤖 AI応答:")
                 print(result["response"])
                 
+                # Function callingの結果を表示
+                if result.get("function_calls"):
+                    print("\n🔧 実行された操作:")
+                    for func_call in result["function_calls"]:
+                        if "error" in func_call:
+                            print(f"  ❌ エラー: {func_call['error']}")
+                        else:
+                            func_name = func_call["function_name"]
+                            func_result = func_call["result"]
+                            print(f"  📋 {func_name}:")
+                            if func_result.get("success"):
+                                print(f"    ✅ {func_result.get('message', '成功')}")
+                            else:
+                                print(f"    ❌ {func_result.get('error', '失敗')}")
+                
                 if result.get("sources"):
                     print(f"\n📄 参照したファイル数: {len(result['sources'])}")
             else:
