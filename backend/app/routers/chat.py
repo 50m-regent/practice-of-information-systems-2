@@ -17,7 +17,7 @@ from settings import get_db
 
 router = APIRouter(prefix="/chat", tags=["Chat"])
 
-@router.post("/message", response_model=ChatResponse)
+@router.post("/message/", response_model=ChatResponse)
 async def send_message(
     request: ChatRequest, 
     current_user: User = Depends(get_current_user),
@@ -40,7 +40,7 @@ async def send_message(
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"メッセージ処理中にエラーが発生しました: {str(e)}")
 
-@router.get("/conversations", response_model=List[ConversationSummary])
+@router.get("/conversations/", response_model=List[ConversationSummary])
 async def get_conversations(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
@@ -58,7 +58,7 @@ async def get_conversations(
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"会話一覧取得中にエラーが発生しました: {str(e)}")
 
-@router.get("/conversations/{conversation_id}", response_model=ConversationHistoryResponse)
+@router.get("/conversations/{conversation_id}/", response_model=ConversationHistoryResponse)
 async def get_conversation_history(
     conversation_id: str,
     current_user: User = Depends(get_current_user),
@@ -82,7 +82,7 @@ async def get_conversation_history(
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"会話履歴取得中にエラーが発生しました: {str(e)}")
 
-@router.delete("/conversations/{conversation_id}")
+@router.delete("/conversations/{conversation_id}/")
 async def delete_conversation(
     conversation_id: str,
     current_user: User = Depends(get_current_user),
@@ -106,7 +106,7 @@ async def delete_conversation(
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"会話削除中にエラーが発生しました: {str(e)}")
 
-@router.post("/conversations", response_model=dict)
+@router.post("/conversations/", response_model=dict)
 async def create_conversation(
     request: CreateConversationRequest,
     current_user: User = Depends(get_current_user),
@@ -134,7 +134,7 @@ async def create_conversation(
         raise HTTPException(status_code=500, detail=f"会話作成中にエラーが発生しました: {str(e)}")
 
 # 後方互換性のため、元のエンドポイントも残す
-@router.post("", response_model=ChatResponse)
+@router.post("/", response_model=ChatResponse)
 async def chat_legacy(
     request: ChatRequest, 
     current_user: User = Depends(get_current_user),
