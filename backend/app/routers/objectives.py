@@ -98,14 +98,14 @@ async def get_objectives(current_user: User = Depends(get_current_user), db: Ses
 async def create_objective(request: CreateObjectiveRequest, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     data_name_obj = db.query(VitalDataName).filter(VitalDataName.name == request.data_name).first()
     if not data_name_obj:
-        raise HTTPException(status_code=404, detail="Data name not found")
-    user = db.query(User).filter(User.id == current_user.id).first()
-    obj_name_id = []
-    for objective_id in user.objective:
-        obj_name_id.append(db.query(Objective).filter(Objective.id == objective_id).first().name_id)
-    if data_name_obj.id in obj_name_id:
-        raise HTTPException(status_code=400, detail="Objective already exists for this data name ")
-
+        new_category_name = VitalDataName(
+            name=request.data_name,
+        )
+        db.add(new_category_name)
+        db.commit()
+        db.refresh(new_category_name)
+        data_name_obj = new_category_name
+    
     objective = Objective(
         start_date=request.start_date,
         end_date=request.end_date,
