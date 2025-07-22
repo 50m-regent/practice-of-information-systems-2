@@ -44,18 +44,18 @@ class InternalAPIService:
                     "error": f"データ名 '{data_name}' が見つかりません"
                 }
             
-            # 既存の目標をチェック
-            user = self.db.query(User).filter(User.id == self.user.id).first()
-            if user.objective:
-                for objective_id in user.objective:
-                    existing_obj = self.db.query(Objective).filter(
-                        Objective.id == objective_id
-                    ).first()
-                    if existing_obj and existing_obj.name_id == data_name_obj.id:
-                        return {
-                            "success": False,
-                            "error": f"'{data_name}' の目標は既に存在します"
-                        }
+            # 既存の目標をチェック（コメントアウト - 重複を許可）
+            # user = self.db.query(User).filter(User.id == self.user.id).first()
+            # if user.objective:
+            #     for objective_id in user.objective:
+            #         existing_obj = self.db.query(Objective).filter(
+            #             Objective.id == objective_id
+            #         ).first()
+            #         if existing_obj and existing_obj.name_id == data_name_obj.id:
+            #             return {
+            #                 "success": False,
+            #                 "error": f"'{data_name}' の目標は既に存在します"
+            #             }
             
             # 目標を作成
             objective = Objective(
@@ -70,6 +70,8 @@ class InternalAPIService:
             self.db.refresh(objective)
             
             # ユーザーの目標リストに追加
+            # セッションから最新のユーザー情報を取得
+            user = self.db.query(User).filter(User.id == self.user.id).first()
             if user.objective is None:
                 user.objective = []
             user.objective.append(objective.id)
