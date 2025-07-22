@@ -41,8 +41,10 @@ export function ProfileEditModal({ visible, user, onClose, onSave }: ProfileEdit
       newErrors.name = 'Username is required';
     }
 
-    if (!editedUser.dateOfBirth) {
-      newErrors.dateOfBirth = 'Date of birth is required';
+    // 生日严格校验YYYY-MM-DD格式
+    const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
+    if (!editedUser.dateOfBirth || !dateRegex.test(editedUser.dateOfBirth)) {
+      newErrors.dateOfBirth = 'Date of birth must be in YYYY-MM-DD format';
     }
 
     if (!editedUser.height || editedUser.height <= 0) {
@@ -88,25 +90,13 @@ export function ProfileEditModal({ visible, user, onClose, onSave }: ProfileEdit
     }
   };
 
+  // 生日输入只允许YYYY-MM-DD格式字符
   const handleDateChange = (dateString: string) => {
-    // Validate date format (YYYY-MM-DD)
-    const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
-    if (dateRegex.test(dateString)) {
-      const date = new Date(dateString);
-      if (!isNaN(date.getTime())) {
-        setEditedUser(prev => ({
-          ...prev,
-          dateOfBirth: dateString
-        }));
-        if (errors.dateOfBirth) {
-          setErrors(prev => ({ ...prev, dateOfBirth: '' }));
-        }
-      }
-    } else {
-      setEditedUser(prev => ({
-        ...prev,
-        dateOfBirth: dateString
-      }));
+    // 只允许输入数字和-，并且长度不超过10
+    let filtered = dateString.replace(/[^\d-]/g, '').slice(0, 10);
+    setEditedUser(prev => ({ ...prev, dateOfBirth: filtered }));
+    if (errors.dateOfBirth) {
+      setErrors(prev => ({ ...prev, dateOfBirth: '' }));
     }
   };
 
