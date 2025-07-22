@@ -1,12 +1,20 @@
 from fastapi import FastAPI
 import uvicorn
-
+from fastapi.middleware.cors import CORSMiddleware
 from app.routers import auth, user, friends, vital_data, objectives, chat
 
 app = FastAPI(
     title="Health Tracking API", 
     description="健康管理アプリケーションAPI", 
     version="1.0.0"
+)
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:3000"],  # フロントエンドのURLを許可
+    allow_credentials=True,
+    allow_methods=["*"],  # すべてのHTTPメソッドを許可
+    allow_headers=["*"],  # すべてのリクエストヘッダーを許可
 )
 
 app.include_router(auth.router)
