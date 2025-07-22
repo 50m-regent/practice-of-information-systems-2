@@ -1,5 +1,5 @@
 from pydantic import BaseModel
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Optional
 from datetime import datetime
 
 class FriendData(BaseModel):
@@ -12,7 +12,7 @@ class ObjectiveResponse(BaseModel):
     start_date: datetime
     end_date: datetime
     objective_value: float
-    my_value: float
+    my_value: Optional[float] = None
     friends: List[FriendData]
 
 class CreateObjectiveRequest(BaseModel):

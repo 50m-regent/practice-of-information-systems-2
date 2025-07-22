@@ -17,9 +17,7 @@ class CreateCategoryRequest(BaseModel):
     is_accumulating: bool
 
 class StatisticsResponse(BaseModel):
-    average: float
-    your_value: float
-    percentile: float
+    average: Optional[float] = None
 
 class VitalDataResponse(BaseModel):
     name: str

@@ -8,3 +8,4 @@
 ```env
 EMAIL_ADDRESS=あなたのGmailアドレス
 EMAIL_PASSWORD=Gmailのアプリパスワード（16桁の英数字）
+```

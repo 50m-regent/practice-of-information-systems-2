@@ -1,75 +1,437 @@
-import { Image } from 'expo-image';
-import { Platform, StyleSheet } from 'react-native';
+import React from 'react';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { router } from 'expo-router';
+import { Plus, Calendar } from 'lucide-react-native';
+import { UserAvatar } from '@/components/UserAvatar';
+import { GoalCard } from '@/components/GoalCard';
+// ChartCardコンポーネントをインポートします
+import { ChartCard } from '@/components/ChartCard';
+import { currentUser, mockGoals, mockFriends } from '@/data/mockData';
+import { ProfileEditModal } from '@/components/ProfileEditModal';
+import { useState } from 'react';
 
-import { HelloWave } from '@/components/HelloWave';
-import ParallaxScrollView from '@/components/ParallaxScrollView';
-import { ThemedText } from '@/components/ThemedText';
-import { ThemedView } from '@/components/ThemedView';
+// 血圧グラフ用のサンプルデータ
+const mockBloodPressureData = {
+  labels: ["6/20", "6/21", "6/22", "6/23", "6/24", "6/25", "6/26"],
+  datasets: [
+    {
+      data: [120, 122, 118, 125, 123, 128, 130],
+      color: (opacity = 1) => `rgba(59, 130, 246, ${opacity})`,
+      strokeWidth: 2
+    }
+  ],
+};
+
+// 歩数グラフ用のサンプルデータ
+const mockStepsData = {
+  labels: ["6/20", "6/21", "6/22", "6/23", "6/24", "6/25", "6/26"],
+  datasets: [
+    {
+      data: [8000, 9200, 7500, 10500, 9800, 12000, 11500],
+      colors: [
+        (opacity = 1) => `rgba(59, 130, 246, ${opacity})`,
+        (opacity = 1) => `rgba(59, 130, 246, ${opacity})`,
+        (opacity = 1) => `rgba(59, 130, 246, ${opacity})`,
+        (opacity = 1) => `rgba(59, 130, 246, ${opacity})`,
+        (opacity = 1) => `rgba(59, 130, 246, ${opacity})`,
+        (opacity = 1) => `rgba(59, 130, 246, ${opacity})`,
+        (opacity = 1) => `rgba(59, 130, 246, ${opacity})`,
+      ]
+    }
+  ]
+};
 
 export default function HomeScreen() {
+  const age = new Date().getFullYear() - new Date(currentUser.dateOfBirth).getFullYear();
+  const [editModalVisible, setEditModalVisible] = useState(false);
+  const [user, setUser] = useState(currentUser);
+
+  const handleAddGoal = () => {
+    router.push('/add-goal');
+  };
+
+  const handleProfileSave = (updatedUser: typeof currentUser) => {
+    setUser(updatedUser);
+    setEditModalVisible(false);
+  };
+
   return (
-    <ParallaxScrollView
-      headerBackgroundColor={{ light: '#A1CEDC', dark: '#1D3D47' }}
-      headerImage={
-        <Image
-          source={require('@/assets/images/partial-react-logo.png')}
-          style={styles.reactLogo}
+    <SafeAreaView style={styles.container}>
+      <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
+        {/* User Profile Header */}
+        <View style={styles.header}>
+          <View style={styles.userInfoRow}>
+            <View style={styles.userInfoLeft}>
+              <UserAvatar uri={user.avatar} size={64} />
+              <View style={styles.userDetailsColumn}>
+                <View style={styles.userNameRow}>
+                  <Text style={styles.userName}>{user.name}</Text>
+                  <View style={styles.genderIndicator} />
+                </View>
+                <Text style={styles.userBirth}>{user.dateOfBirth.replace(/-/g, '年').replace(/(\d{4})年(\d{2})年(\d{2})/, '$1年$2月$3日生まれ')}</Text>
+                <Text style={styles.userHeight}>{user.height}cm</Text>
+              </View>
+            </View>
+            <TouchableOpacity
+              style={styles.editProfileButton}
+              onPress={() => setEditModalVisible(true)}
+              activeOpacity={0.7}
+            >
+              <Text style={styles.editProfileButtonText}>変更</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+
+        {/* Goals Section */}
+        <View style={styles.section}>
+          <View style={styles.objectivesCard}>
+            <Text style={styles.objectivesTitle}>目標</Text>
+            {mockGoals.map(goal => (
+              <View key={goal.id} style={styles.objectiveItem}>
+                <View style={styles.objectiveBarCard}>
+                  <GoalCard goal={goal} friends={mockFriends} />
+                </View>
+                <View style={styles.objectiveInfoRow}>
+                  <Text style={styles.objectiveName}>{goal.title}</Text>
+                  <Text style={styles.objectivePeriod}>{getGoalPeriod(goal)}</Text>
+                </View>
+          </View>
+          ))}
+          <TouchableOpacity style={styles.addGoalButton} onPress={handleAddGoal}>
+            <Text style={styles.addGoalButtonText}>目標を追加</Text>
+          </TouchableOpacity>
+          </View>
+        </View>
+
+        {/* Life Log Section */}
+        <View style={styles.section}>
+           <Text style={styles.sectionTitle}>Life Log</Text>
+          
+          {/* ChartCardコンポーネントを呼び出して内容を反映 */}
+          <ChartCard 
+            type="line"
+            title="血圧"
+            currentValue={130}
+            data={mockBloodPressureData}
+          />
+          
+          <ChartCard
+            type="bar"
+            title="歩数"
+            currentValue={11500}
+            data={mockStepsData}
+          />
+
+          <TouchableOpacity style={styles.addLogButton} onPress={() => router.push('/add-data')}>
+            <Text style={styles.addLogButtonText}>ライフログを追加</Text>
+          </TouchableOpacity>
+        </View>
+        <ProfileEditModal
+          visible={editModalVisible}
+          user={user}
+          onClose={() => setEditModalVisible(false)}
+          onSave={handleProfileSave}
         />
-      }>
-      <ThemedView style={styles.titleContainer}>
-        <ThemedText type="title">Welcome!</ThemedText>
-        <HelloWave />
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <ThemedText type="subtitle">Step 1: Try it</ThemedText>
-        <ThemedText>
-          Edit <ThemedText type="defaultSemiBold">app/(tabs)/index.tsx</ThemedText> to see changes.
-          Press{' '}
-          <ThemedText type="defaultSemiBold">
-            {Platform.select({
-              ios: 'cmd + d',
-              android: 'cmd + m',
-              web: 'F12',
-            })}
-          </ThemedText>{' '}
-          to open developer tools.
-        </ThemedText>
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <ThemedText type="subtitle">Step 2: Explore</ThemedText>
-        <ThemedText>
-          {`Tap the Explore tab to learn more about what's included in this starter app.`}
-        </ThemedText>
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <ThemedText type="subtitle">Step 3: Get a fresh start</ThemedText>
-        <ThemedText>
-          {`When you're ready, run `}
-          <ThemedText type="defaultSemiBold">npm run reset-project</ThemedText> to get a fresh{' '}
-          <ThemedText type="defaultSemiBold">app</ThemedText> directory. This will move the current{' '}
-          <ThemedText type="defaultSemiBold">app</ThemedText> to{' '}
-          <ThemedText type="defaultSemiBold">app-example</ThemedText>.
-        </ThemedText>
-      </ThemedView>
-    </ParallaxScrollView>
+      </ScrollView>
+    </SafeAreaView>
   );
 }
 
+// Add helper function for period
+type GoalType = typeof mockGoals[0];
+function getGoalPeriod(goal: GoalType) {
+  const start = new Date(goal.createdAt);
+  const end = new Date(start);
+  end.setMonth(start.getMonth() + 3);
+  return `${start.getFullYear()}年${start.getMonth() + 1}月${start.getDate()}日 ~ ${end.getFullYear()}年${end.getMonth() + 1}月${end.getDate()}日`;
+}
+
 const styles = StyleSheet.create({
-  titleContainer: {
+  container: {
+    flex: 1,
+    backgroundColor: '#F9FAFB'
+  },
+  scrollView: {
+    flex: 1
+  },
+  header: {
+    backgroundColor: '#FFFFFF',
+    paddingHorizontal: 20,
+    paddingVertical: 24,
+    borderBottomWidth: 1,
+    borderBottomColor: '#E5E7EB'
+  },
+  userInfo: {
+    flexDirection: 'row',
+    alignItems: 'center'
+  },
+  userDetails: {
+    marginLeft: 16,
+    flex: 1
+  },
+  userName: {
+    fontFamily: 'Noto Sans JP',
+    fontWeight: '900', // bolder
+    fontSize: 22, // even bigger
+    lineHeight: 26,
+    letterSpacing: 0.03,
+    color: '#222', // true black look
+    width: 120, // was 80, now longer
+    height: 26,
+  },
+  userMeta: {
+    flexDirection: 'row',
+    alignItems: 'center'
+  },
+  userAge: {
+    marginLeft: 6,
+    fontSize: 14,
+    fontFamily: 'Inter-Regular',
+    color: '#6B7280'
+  },
+  userStats: {
+    marginLeft: 12,
+    fontSize: 14,
+    fontFamily: 'Inter-Regular',
+    color: '#6B7280'
+  },
+  section: {
+    paddingHorizontal: 20,
+    paddingVertical: 12
+  },
+  sectionHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 16
+  },
+  sectionTitle: {
+    fontSize: 20,
+    fontFamily: 'Inter-Bold',
+    color: '#111827',
+    marginBottom: 4,
+  },
+  addButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    backgroundColor: '#EFF6FF',
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: '#DBEAFE'
+  },
+  addButtonText: {
+    marginLeft: 4,
+    fontSize: 14,
+    fontFamily: 'Inter-Medium',
+    color: '#3B82F6'
+  },
+  addGoalButton: {
+    width: 345,
+    height: 32,
+    backgroundColor: '#F3F4F6',
+    borderWidth: 0.5,
+    borderColor: '#D2D5E3',
+    borderRadius: 8,
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    alignSelf: 'center',
+    // No marginTop, flush with content
+    // Neumorphic shadow (optional):
+    shadowColor: '#000',
+    shadowOffset: { width: 2, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 4,
+    elevation: 1,
+  },
+  addGoalButtonText: {
+    fontFamily: 'Noto Sans JP',
+    fontWeight: '500',
+    fontSize: 12,
+    lineHeight: 14,
+    color: '#565869',
+    textAlign: 'center',
+  },
+  addLogButton: {
+    width: '100%', // fill parent, align with charts
+    height: 40, // slightly larger
+    backgroundColor: '#F3F4F6',
+    borderWidth: 0.5,
+    borderColor: '#D2D5E3',
+    borderRadius: 8,
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    alignSelf: 'stretch',
+    shadowColor: '#000',
+    shadowOffset: { width: 2, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 4,
+    elevation: 1,
+  },
+  addLogButtonText: {
+    fontFamily: 'Noto Sans JP',
+    fontWeight: '500',
+    fontSize: 14,
+    lineHeight: 18,
+    color: '#565869',
+    textAlign: 'center',
+  },
+  userInfoRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingTop: 16,
+    width: 361,
+    height: 80,
+    gap: 8,
+  },
+  userInfoLeft: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
+    width: 194,
+    height: 64,
   },
-  stepContainer: {
+  userDetailsColumn: {
+    flexDirection: 'column',
+    justifyContent: 'center',
+    alignItems: 'flex-start',
+    gap: 4,
+    width: 122,
+    height: 55,
+    marginLeft: 8,
+  },
+  userNameRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
     gap: 8,
+    width: 90,
+    height: 19,
+  },
+  userName: {
+    fontFamily: 'Noto Sans JP',
+    fontWeight: '700',
+    fontSize: 16,
+    lineHeight: 19,
+    letterSpacing: 0.03,
+    color: '#565869',
+    width: 66,
+    height: 19,
+  },
+  genderIndicator: {
+    width: 16,
+    height: 16,
+    backgroundColor: '#7086DB',
+    borderWidth: 0.5,
+    borderColor: '#D2D5E3',
+    borderRadius: 8,
+  },
+  userBirth: {
+    fontFamily: 'Noto Sans JP',
+    fontWeight: '400',
+    fontSize: 12,
+    lineHeight: 14,
+    letterSpacing: 0.02,
+    color: '#565869',
+    width: 160, // was 122, now longer
+    height: 14,
+  },
+  userHeight: {
+    fontFamily: 'Noto Sans JP',
+    fontWeight: '400',
+    fontSize: 12,
+    lineHeight: 14,
+    letterSpacing: 0.02,
+    color: '#565869',
+    width: 39,
+    height: 14,
+  },
+  editProfileButton: {
+    width: 70, // bigger
+    height: 32, // bigger
+    backgroundColor: '#F3F4F6',
+    borderWidth: 0.5,
+    borderColor: '#D2D5E3',
+    borderRadius: 12,
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 12,
+    shadowColor: '#000',
+    shadowOffset: { width: 2, height: 2 },
+    shadowOpacity: 0.15,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  editProfileButtonText: {
+    fontFamily: 'Noto Sans JP',
+    fontWeight: '400',
+    fontSize: 14, // bigger
+    lineHeight: 18,
+    color: '#565869',
+    textAlign: 'center',
+    width: 40,
+    height: 18,
+  },
+  objectivesCard: {
+    backgroundColor: '#F3F4F6',
+    borderRadius: 12,
+    padding: 8,
+    gap: 8,
+    width: '100%',
+    alignSelf: 'stretch',
+    marginBottom: 16,
+  },
+  objectivesTitle: {
+    fontFamily: 'Noto Sans JP',
+    fontWeight: 'bold',
+    fontSize: 20,
+    lineHeight: 24,
+    letterSpacing: 0.03,
+    color: '#111827',
     marginBottom: 8,
   },
-  reactLogo: {
-    height: 178,
-    width: 290,
-    bottom: 0,
-    left: 0,
-    position: 'absolute',
+  objectiveItem: {
+    flexDirection: 'column',
+    alignItems: 'flex-start',
+    gap: 2,
+    marginBottom: 8,
+  },
+  objectiveBarCard: {
+    backgroundColor: '#F3F4F6',
+    borderWidth: 0.5,
+    borderColor: '#D2D5E3',
+    borderRadius: 13,
+    padding: 4,
+    width: 345,
+    alignSelf: 'center',
+  },
+  objectiveInfoRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    width: 345,
+    paddingHorizontal: 0,
+    gap: 16,
+    marginTop: 2,
+    marginBottom: 2,
+  },
+  objectiveName: {
+    fontFamily: 'Noto Sans JP',
+    fontWeight: '700',
+    fontSize: 10,
+    lineHeight: 12,
+    color: '#565869',
+  },
+  objectivePeriod: {
+    fontFamily: 'Noto Sans JP',
+    fontWeight: '400',
+    fontSize: 10,
+    lineHeight: 12,
+    color: '#565869',
   },
 });
