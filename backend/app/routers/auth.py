@@ -12,7 +12,7 @@ from models.otpcodes import OTPCode
 
 router = APIRouter(prefix="/auth", tags=["Authentication"])
 
-@router.post("/login")
+@router.post("/login/")
 async def login(request: LoginRequest, background_tasks: BackgroundTasks, db: Session = Depends(get_db)):
     user = db.query(User).filter(User.email == request.email).first()
     if not user:
@@ -41,7 +41,7 @@ async def login(request: LoginRequest, background_tasks: BackgroundTasks, db: Se
 
     return {"message": f"OTP sent to your email.: {otp_code}"}
 
-@router.post("/one-time", response_model=TokenResponse)
+@router.post("/one-time/", response_model=TokenResponse)
 async def verify_otp(request: OTPRequest, db: Session = Depends(get_db)):
     otp_record = db.query(OTPCode).filter(
         OTPCode.otp_code == request.otp_code,

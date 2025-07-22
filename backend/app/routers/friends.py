@@ -13,7 +13,7 @@ from models.uservitalcategory import UserVitalCategory
 
 router = APIRouter(prefix="/friends", tags=["Friends"])
 
-@router.get("", response_model=List[FriendListResponse])
+@router.get("/", response_model=List[FriendListResponse])
 async def get_friends(current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     friends = []
     if current_user.friends:
@@ -37,7 +37,7 @@ async def get_friends(current_user: User = Depends(get_current_user), db: Sessio
     
     return friends
 
-@router.get("/{user_id}", response_model=FriendDetailResponse)
+@router.get("/{user_id}/", response_model=FriendDetailResponse)
 async def get_friend_detail(user_id: int, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     friend = db.query(User).filter(User.id == user_id).first()
     if not friend:
@@ -74,7 +74,7 @@ async def get_friend_detail(user_id: int, current_user: User = Depends(get_curre
         vital_data=vital_data
     )
 
-@router.post("/add")
+@router.post("/add/")
 async def add_friend(request: AddFriendRequest, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     friend = db.query(User).filter(User.id == request.friend_id).first()
     if not friend:

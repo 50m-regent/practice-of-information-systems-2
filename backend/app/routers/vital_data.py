@@ -14,7 +14,7 @@ from datetime import datetime, date
 
 router = APIRouter(prefix="/vitaldata", tags=["Vital Data"])
 
-@router.get("/category", response_model=List[VitalDataCategoryResponse])
+@router.get("/category/", response_model=List[VitalDataCategoryResponse])
 async def get_my_category(current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     vital_data = db.query(VitalDataName).join(UserVitalCategory).filter(VitalDataName.id == UserVitalCategory.vital_id, UserVitalCategory.user_id == current_user.id).all()
 
@@ -27,7 +27,7 @@ async def get_my_category(current_user: User = Depends(get_current_user), db: Se
     
     return result
 
-@router.post("/register")
+@router.post("/register/")
 async def add_vital_data(request: RegisterRequest, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     vital_data = VitalData(
         name_id=request.name_id,
@@ -41,7 +41,7 @@ async def add_vital_data(request: RegisterRequest, current_user: User = Depends(
 
     return {"message": "Vital data added successfully"}
 
-@router.put("/create")
+@router.put("/create/")
 async def create_new_category(
     request: CreateCategoryRequest,
     current_user: User = Depends(get_current_user),
@@ -74,7 +74,7 @@ async def create_new_category(
     
     return {"message": "New category created successfully"}
 
-@router.get("/statistics", response_model=StatisticsResponse)
+@router.get("/statistics/", response_model=StatisticsResponse)
 async def get_statistics(
         vital_name: str,
         start_age: int,
@@ -165,7 +165,7 @@ async def get_statistics(
         average=average
     )
 
-@router.get("/me", response_model=List[VitalDataResponse])
+@router.get("/me/", response_model=List[VitalDataResponse])
 async def get_my_vital_data(current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     vital_data = db.query(VitalData).join(VitalDataName).filter(
         VitalData.name_id == VitalDataName.id,
@@ -182,7 +182,7 @@ async def get_my_vital_data(current_user: User = Depends(get_current_user), db: 
     
     return result
 
-@router.get("/life-logs", response_model=List[LifeLogGroupedResponse])
+@router.get("/life-logs/", response_model=List[LifeLogGroupedResponse])
 async def get_life_logs(current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     # userのvitalデータと名前を結合
     vital_data = db.query(VitalData).join(VitalDataName).filter(
