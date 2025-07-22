@@ -17,7 +17,7 @@ from sqlalchemy import func
 
 router = APIRouter(prefix="/objectives", tags=["Objectives"])
 
-@router.get("", response_model=List[ObjectiveResponse])
+@router.get("/", response_model=List[ObjectiveResponse])
 async def get_objectives(current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     user = db.query(User).filter(User.id == current_user.id).first()
     objectives_id = user.objective
@@ -94,7 +94,7 @@ async def get_objectives(current_user: User = Depends(get_current_user), db: Ses
         
     return result
 
-@router.put("")
+@router.put("/")
 async def create_objective(request: CreateObjectiveRequest, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     data_name_obj = db.query(VitalDataName).filter(VitalDataName.name == request.data_name).first()
     if not data_name_obj:
@@ -122,7 +122,7 @@ async def create_objective(request: CreateObjectiveRequest, current_user: User =
     
     return {"id": objective.id, "message": "Objective created"}
 
-@router.put("/{objective_id}")
+@router.put("/{objective_id}/")
 async def update_objective(
     objective_id: int, 
     request: UpdateObjectiveRequest, 
@@ -138,7 +138,7 @@ async def update_objective(
     
     return {"message": "Objective updated"}
 
-@router.delete("/{objective_id}")
+@router.delete("/{objective_id}/")
 async def delete_objective(
     objective_id: int, 
     current_user: User = Depends(get_current_user), 

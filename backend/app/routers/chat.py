@@ -6,7 +6,7 @@ from models.users import User
 
 router = APIRouter(prefix="/chat", tags=["Chat"])
 
-@router.post("", response_model=ChatResponse)
+@router.post("/", response_model=ChatResponse)
 async def chat(request: ChatRequest, current_user: User = Depends(get_current_user)):
     reply = f"こんにちは！あなたのメッセージ「{request.message}」を受け取りました。"
     
