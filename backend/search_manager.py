@@ -1,12 +1,12 @@
 from typing import List, Dict, Any, Optional
 import json
 import asyncio
+import httpx
 from openai import OpenAI
 from vector_store_manager import VectorStoreManager
 from config import DEFAULT_MODEL, DEFAULT_VECTOR_STORE_NAME, MESSAGES
 from function_tools import get_function_tools
 from database_manager import DatabaseManager
-from app.services.internal_api import InternalAPIService
 
 
 class SearchManager:
@@ -15,6 +15,8 @@ class SearchManager:
         self.vector_store_manager = VectorStoreManager(api_key)
         self.database_manager = DatabaseManager()
         self.current_user = None  # 現在のユーザー（デモ用）
+        self.fastapi_base_url = "http://localhost:8000"  # FastAPIサーバーのURL
+        self.demo_token = None  # デモ用のアクセストークン
     
     def setup_search_system(self, vector_store_name: str = DEFAULT_VECTOR_STORE_NAME) -> bool:
         try:
@@ -24,11 +26,17 @@ class SearchManager:
                 print(f"{MESSAGES['ERROR_PREFIX']} Vector Store IDが設定されていません")
                 return False
             
-            success = self.vector_store_manager.upload_database_to_vector_store()
+            # 既存のVector Storeを使用（アップロードスキップ）
+            if self.vector_store_manager.vector_store_id:
+                print("✅ 既存のVector Storeを使用します（データアップロードをスキップ）")
+                success = True
+            else:
+                success = self.vector_store_manager.upload_database_to_vector_store()
             print(MESSAGES['INIT_COMPLETE'] if success else MESSAGES['INIT_FAILED'])
             
             # デモ用のユーザーを設定（実際の運用では認証システムが必要）
             self._set_demo_user()
+            self._set_demo_auth()
             
             return success
             
@@ -59,6 +67,20 @@ class SearchManager:
             print(f"デモユーザー設定エラー: {e}")
             # import traceback
             # traceback.print_exc()
+
+    def _set_demo_auth(self):
+        """デモ用の認証トークンを設定"""
+        try:
+            if not self.current_user:
+                print("警告: ユーザーが設定されていないため、認証トークンを設定できません")
+                return
+                
+            # 簡易的なデモトークン（実際の運用では適切な認証システムを使用）
+            self.demo_token = f"demo_token_user_{self.current_user.id}"
+            print(f"デモ認証トークン設定: {self.demo_token}")
+            
+        except Exception as e:
+            print(f"デモ認証設定エラー: {e}")
     
     def search(self, query: str, context: str = "") -> Dict[str, Any]:
         try:
@@ -207,69 +229,163 @@ class SearchManager:
         return function_results
     
     async def _execute_function_call(self, function_name: str, arguments: Dict[str, Any]) -> Dict[str, Any]:
-        """Function callingを実行"""
+        """Function callingを実行（FastAPI経由）"""
         try:
-            # print(f"DEBUG: current_user = {self.current_user}")
-            if not self.current_user:
+            if not self.current_user or not self.demo_token:
                 # ユーザーが設定されていない場合、再度設定を試す
-                # print("DEBUG: current_userがNone, 再設定を試します")
                 self._set_demo_user()
-                # print(f"DEBUG: 再設定後のcurrent_user = {self.current_user}")
+                self._set_demo_auth()
                 
-                if not self.current_user:
+                if not self.current_user or not self.demo_token:
                     return {
                         "success": False,
-                        "error": "ユーザーが設定されていません"
+                        "error": "ユーザーまたは認証トークンが設定されていません"
                     }
             
-            # データベースセッションを取得
-            from settings import get_db
-            session = next(get_db())
-            
-            try:
-                # InternalAPIServiceを初期化
-                api_service = InternalAPIService(session, self.current_user)
+            # HTTPクライアントを使用してFastAPIエンドポイントに送信
+            async with httpx.AsyncClient() as client:
+                headers = {"Authorization": f"Bearer {self.demo_token}"}
                 
-                # Function callingを実行
+                # Function callingに応じてエンドポイントとデータを設定
                 if function_name == "create_objective":
-                    return await api_service.create_objective(
-                        data_name=arguments["data_name"],
-                        start_date=arguments["start_date"],
-                        end_date=arguments["end_date"],
-                        objective_value=arguments["objective_value"]
-                    )
+                    url = f"{self.fastapi_base_url}/objectives/"
+                    # 日付を適切なISO形式に変換
+                    start_date = arguments["start_date"]
+                    end_date = arguments["end_date"]
+                    if not start_date.endswith("T00:00:00"):
+                        start_date += "T00:00:00"
+                    if not end_date.endswith("T00:00:00"):
+                        end_date += "T00:00:00"
+                        
+                    data = {
+                        "data_name": arguments["data_name"],
+                        "start_date": start_date,
+                        "end_date": end_date,
+                        "objective_value": arguments["objective_value"]
+                    }
+                    print(f"🔍 DEBUG: 目標作成リクエスト")
+                    print(f"  URL: {url}")
+                    print(f"  データ: {data}")
+                    print(f"  ヘッダー: {headers}")
+                    
+                    response = await client.put(url, json=data, headers=headers)
+                    
+                    print(f"🔍 DEBUG: 目標作成レスポンス")
+                    print(f"  ステータス: {response.status_code}")
+                    print(f"  テキスト: '{response.text}'")
+                    
                 elif function_name == "get_objectives":
-                    return await api_service.get_objectives()
+                    url = f"{self.fastapi_base_url}/objectives/"
+                    print(f"🔍 DEBUG: 目標一覧取得リクエスト")
+                    print(f"  URL: {url}")
+                    print(f"  ヘッダー: {headers}")
+                    
+                    response = await client.get(url, headers=headers)
+                    
+                    print(f"🔍 DEBUG: 目標一覧取得レスポンス")
+                    print(f"  ステータス: {response.status_code}")
+                    print(f"  テキスト: '{response.text[:200]}...' (最初の200文字)")
+                    
+                    
                 elif function_name == "update_objective":
-                    return await api_service.update_objective(
-                        objective_id=arguments["objective_id"],
-                        objective_value=arguments["objective_value"]
-                    )
+                    objective_id = arguments["objective_id"]
+                    url = f"{self.fastapi_base_url}/objectives/{objective_id}/"
+                    data = {
+                        "objective_value": arguments["objective_value"]
+                    }
+                    response = await client.put(url, json=data, headers=headers)
+                    
                 elif function_name == "delete_objective":
-                    return await api_service.delete_objective(
-                        objective_id=arguments["objective_id"]
-                    )
+                    objective_id = arguments["objective_id"]
+                    url = f"{self.fastapi_base_url}/objectives/{objective_id}/"
+                    response = await client.delete(url, headers=headers)
+                    
                 elif function_name == "register_vital_data":
-                    return await api_service.register_vital_data(
-                        data_name=arguments["data_name"],
-                        value=arguments["value"],
-                        date=arguments.get("date")
-                    )
+                    url = f"{self.fastapi_base_url}/vitaldata/register/"
+                    
+                    # data_nameからname_idを取得する必要があるため、まずVitalDataNameを検索
+                    data_name = arguments["data_name"]
+                    from settings import get_db
+                    from models.vitaldataname import VitalDataName
+                    session = next(get_db())
+                    try:
+                        data_name_obj = session.query(VitalDataName).filter(
+                            VitalDataName.name == data_name
+                        ).first()
+                        if not data_name_obj:
+                            return {
+                                "success": False,
+                                "error": f"データ名 '{data_name}' が見つかりません"
+                            }
+                        name_id = data_name_obj.id
+                    finally:
+                        session.close()
+                    
+                    data = {
+                        "name_id": name_id,
+                        "value": arguments["value"],
+                        "date": arguments.get("date")
+                    }
+                    response = await client.post(url, json=data, headers=headers)
+                    
                 elif function_name == "get_vital_data":
-                    return await api_service.get_vital_data(
-                        data_name=arguments.get("data_name"),
-                        limit=arguments.get("limit", 10)
-                    )
+                    url = f"{self.fastapi_base_url}/vitaldata/me/"
+                    response = await client.get(url, headers=headers)
+                    
                 else:
                     return {
                         "success": False,
                         "error": f"未知のfunction: {function_name}"
                     }
-                    
-            finally:
-                session.close()
                 
+                # レスポンス処理
+                if response.status_code == 200:
+                    result_data = response.json()
+                    
+                    # function_nameに応じてレスポンス形式を統一
+                    if function_name == "get_objectives":
+                        return {
+                            "success": True,
+                            "objectives": result_data,
+                            "message": f"{len(result_data)}個の目標が見つかりました"
+                        }
+                    elif function_name == "get_vital_data":
+                        return {
+                            "success": True,
+                            "data": result_data,
+                            "message": f"{len(result_data)}件のデータが見つかりました"
+                        }
+                    else:
+                        return {
+                            "success": True,
+                            "message": result_data.get("message", "操作が完了しました")
+                        }
+                else:
+                    print(f"❌ DEBUG: APIエラー詳細")
+                    print(f"  ステータスコード: {response.status_code}")
+                    print(f"  レスポンスヘッダー: {dict(response.headers)}")
+                    print(f"  レスポンステキスト: '{response.text}'")
+                    
+                    try:
+                        error_detail = response.json().get("detail", "不明なエラー")
+                        print(f"  JSONエラー詳細: {error_detail}")
+                    except Exception as json_err:
+                        error_detail = response.text
+                        print(f"  JSON解析エラー: {json_err}")
+                    
+                    return {
+                        "success": False,
+                        "error": f"API呼び出しエラー（{response.status_code}）: {error_detail}"
+                    }
+                    
         except Exception as e:
+            print(f"❌ DEBUG: Function calling例外")
+            print(f"  例外タイプ: {type(e).__name__}")
+            print(f"  例外メッセージ: {str(e)}")
+            import traceback
+            print(f"  スタックトレース:")
+            traceback.print_exc()
+            
             return {
                 "success": False,
                 "error": f"Function calling実行エラー: {str(e)}"

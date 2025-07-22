@@ -92,17 +92,32 @@ class CLIAgent:
                 # Function callingの結果を表示
                 if result.get("function_calls"):
                     print("\n🔧 実行された操作:")
-                    for func_call in result["function_calls"]:
+                    for i, func_call in enumerate(result["function_calls"], 1):
                         if "error" in func_call:
-                            print(f"  ❌ エラー: {func_call['error']}")
+                            print(f"  ❌ 操作 {i} - エラー: {func_call['error']}")
                         else:
                             func_name = func_call["function_name"]
                             func_result = func_call["result"]
-                            print(f"  📋 {func_name}:")
+                            print(f"  📋 操作 {i} - {func_name}:")
+                            
+                            # 引数も表示
+                            if func_call.get("arguments"):
+                                print(f"    📥 引数: {func_call['arguments']}")
+                                
                             if func_result.get("success"):
-                                print(f"    ✅ {func_result.get('message', '成功')}")
+                                print(f"    ✅ 結果: {func_result.get('message', '成功')}")
+                                # 追加データがあれば表示
+                                if func_result.get("objectives"):
+                                    print(f"    📊 目標数: {len(func_result['objectives'])}")
+                                if func_result.get("data"):
+                                    print(f"    📊 データ数: {len(func_result['data'])}")
                             else:
-                                print(f"    ❌ {func_result.get('error', '失敗')}")
+                                print(f"    ❌ エラー: {func_result.get('error', '失敗')}")
+                                # エラーの詳細情報があれば表示
+                                if hasattr(func_result, 'keys'):
+                                    for key, value in func_result.items():
+                                        if key not in ['success', 'error']:
+                                            print(f"    🔍 {key}: {value}")
                 
                 if result.get("sources"):
                     print(f"\n📄 参照したファイル数: {len(result['sources'])}")
@@ -111,6 +126,9 @@ class CLIAgent:
                 
         except Exception as e:
             print(f"❌ 処理エラー: {e}")
+            print("🔍 詳細なエラー情報:")
+            import traceback
+            traceback.print_exc()
         
         print("-" * 40)
     
