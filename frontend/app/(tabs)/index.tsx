@@ -7,9 +7,11 @@ import { UserAvatar } from '@/components/UserAvatar';
 import { GoalCard } from '@/components/GoalCard';
 // ChartCardコンポーネントをインポートします
 import { ChartCard } from '@/components/ChartCard';
-import { currentUser, mockGoals, mockFriends } from '@/data/mockData';
-import { ProfileEditModal } from '@/components/ProfileEditModal';
+import { useEffect } from 'react';
+import { User } from '@/types';
+import { getUserProfile, updateUserProfile } from '@/api/auth';
 import { useState } from 'react';
+import { ProfileEditModal } from '@/components/ProfileEditModal';
 
 // 血圧グラフ用のサンプルデータ
 const mockBloodPressureData = {
@@ -43,18 +45,69 @@ const mockStepsData = {
 };
 
 export default function HomeScreen() {
-  const age = new Date().getFullYear() - new Date(currentUser.dateOfBirth).getFullYear();
   const [editModalVisible, setEditModalVisible] = useState(false);
-  const [user, setUser] = useState(currentUser);
+  const [user, setUser] = useState<User | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchProfile = async () => {
+      try {
+        const token = localStorage?.getItem?.('access_token');
+        if (!token) return;
+        const data = await getUserProfile(token);
+        // 适配后端字段到前端User类型
+        setUser({
+          id: '',
+          name: data.username,
+          email: '',
+          dateOfBirth: data.date_of_birth,
+          height: data.height,
+          weight: 0,
+          gender: data.sex === true ? 'male' : data.sex === false ? 'female' : 'other',
+          avatar: data.icon ? `data:image/png;base64,${data.icon}` : '',
+        });
+      } catch (e) {
+        // 处理错误
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchProfile();
+  }, []);
+
+  const handleProfileSave = async (updatedUser: User) => {
+    try {
+      const token = localStorage?.getItem?.('access_token');
+      if (!token) return;
+      // 适配前端User到后端profile结构
+      await updateUserProfile({
+        icon: updatedUser.avatar.replace(/^data:image\/\w+;base64,/, ''),
+        username: updatedUser.name,
+        date_of_birth: updatedUser.dateOfBirth,
+        height: updatedUser.height,
+        sex: updatedUser.gender === 'male' ? true : updatedUser.gender === 'female' ? false : null,
+      }, token);
+      setUser(updatedUser);
+      setEditModalVisible(false);
+    } catch (e) {
+      // 处理保存错误
+    }
+  };
+
+  if (loading || !user) return <Text>Loading...</Text>;
+
+  // 用户信息显示的默认文案
+  const displayName = user.name || 'ユーザー名未設定';
+  const displayBirth = user.dateOfBirth ? user.dateOfBirth.replace(/-/g, '年').replace(/(\d{4})年(\d{2})年(\d{2})/, '$1年$2月$3日生まれ') : '生年月日未設定';
+  const displayHeight = user.height ? `${user.height}cm` : '身長未設定';
+  const displayAvatar = user.avatar || 'https://placehold.co/64x64?text=User';
 
   const handleAddGoal = () => {
     router.push('/add-goal');
   };
 
-  const handleProfileSave = (updatedUser: typeof currentUser) => {
-    setUser(updatedUser);
-    setEditModalVisible(false);
-  };
+  // 目标数据暂时为空数组，后续有API再对接
+  const goals: any[] = [];
 
   return (
     <SafeAreaView style={styles.container}>
@@ -63,14 +116,14 @@ export default function HomeScreen() {
         <View style={styles.header}>
           <View style={styles.userInfoRow}>
             <View style={styles.userInfoLeft}>
-              <UserAvatar uri={user.avatar} size={64} />
+              <UserAvatar uri={displayAvatar} size={64} />
               <View style={styles.userDetailsColumn}>
                 <View style={styles.userNameRow}>
-                  <Text style={styles.userName}>{user.name}</Text>
+                  <Text style={styles.userName}>{displayName}</Text>
                   <View style={styles.genderIndicator} />
                 </View>
-                <Text style={styles.userBirth}>{user.dateOfBirth.replace(/-/g, '年').replace(/(\d{4})年(\d{2})年(\d{2})/, '$1年$2月$3日生まれ')}</Text>
-                <Text style={styles.userHeight}>{user.height}cm</Text>
+                <Text style={styles.userBirth}>{displayBirth}</Text>
+                <Text style={styles.userHeight}>{displayHeight}</Text>
               </View>
             </View>
             <TouchableOpacity
@@ -87,20 +140,22 @@ export default function HomeScreen() {
         <View style={styles.section}>
           <View style={styles.objectivesCard}>
             <Text style={styles.objectivesTitle}>目標</Text>
-            {mockGoals.map(goal => (
-              <View key={goal.id} style={styles.objectiveItem}>
-                <View style={styles.objectiveBarCard}>
-                  <GoalCard goal={goal} friends={mockFriends} />
+            {goals.length > 0 ? (
+              goals.map(goal => (
+                <View key={goal.id} style={styles.objectiveItem}>
+                  <View style={styles.objectiveBarCard}>
+                    {/* 这里以后渲染GoalCard等 */}
+                  </View>
+                  <View style={styles.objectiveInfoRow}>
+                    <Text style={styles.objectiveName}>{goal.title}</Text>
+                    <Text style={styles.objectivePeriod}>{getGoalPeriod(goal)}</Text>
+                  </View>
                 </View>
-                <View style={styles.objectiveInfoRow}>
-                  <Text style={styles.objectiveName}>{goal.title}</Text>
-                  <Text style={styles.objectivePeriod}>{getGoalPeriod(goal)}</Text>
-                </View>
-          </View>
-          ))}
-          <TouchableOpacity style={styles.addGoalButton} onPress={handleAddGoal}>
-            <Text style={styles.addGoalButtonText}>目標を追加</Text>
-          </TouchableOpacity>
+              ))
+            ) : null}
+            <TouchableOpacity style={styles.addGoalButton} onPress={handleAddGoal}>
+              <Text style={styles.addGoalButtonText}>目標を追加</Text>
+            </TouchableOpacity>
           </View>
         </View>
 

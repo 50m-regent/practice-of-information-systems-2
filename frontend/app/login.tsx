@@ -3,6 +3,7 @@ import { View, Text, StyleSheet, TextInput, TouchableOpacity, Dimensions, Keyboa
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { Mail, ArrowRight, RefreshCw, Check, X } from 'lucide-react-native';
+import { sendOtpToEmail, verifyOtpAndGetToken } from '../api/auth';
 
 const { width, height } = Dimensions.get('window');
 
@@ -17,7 +18,7 @@ export default function LoginScreen() {
 
   // Countdown timer for resend
   useEffect(() => {
-    let timer: NodeJS.Timeout;
+    let timer: ReturnType<typeof setTimeout>;
     if (countdown > 0) {
       timer = setTimeout(() => setCountdown(countdown - 1), 1000);
     }
@@ -44,14 +45,12 @@ export default function LoginScreen() {
     setIsLoading(true);
 
     try {
-      // Simulate API call to send OTP
-      await new Promise(resolve => setTimeout(resolve, 1500));
-      
-      // Show OTP modal
+      // 调用API发送OTP
+      await sendOtpToEmail(email);
       setStep('otp');
       setCountdown(60);
-    } catch (error) {
-      setError('Failed to send verification code. Please try again.');
+    } catch (error: any) {
+      setError(error?.response?.data?.message || 'Failed to send verification code. Please try again.');
     } finally {
       setIsLoading(false);
     }
@@ -67,13 +66,15 @@ export default function LoginScreen() {
     setIsLoading(true);
 
     try {
-      // Simulate API call to verify OTP
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
-      // Navigate to main app
+      // 调用API验证OTP并获取token
+      const data = await verifyOtpAndGetToken(otp);
+      // 保存token到本地（可用AsyncStorage/localStorage等）
+      // 这里只是示例，实际项目建议安全存储
+      localStorage?.setItem?.('access_token', data.access_token);
+      // 跳转到主页面
       router.replace('/(tabs)');
-    } catch (error) {
-      setError('Invalid verification code. Please try again.');
+    } catch (error: any) {
+      setError(error?.response?.data?.detail || 'Invalid verification code. Please try again.');
     } finally {
       setIsLoading(false);
     }
@@ -81,16 +82,13 @@ export default function LoginScreen() {
 
   const handleResendCode = async () => {
     if (countdown > 0) return;
-    
     setIsResending(true);
     setError('');
-
     try {
-      // Simulate API call to resend OTP
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      await sendOtpToEmail(email);
       setCountdown(60);
-    } catch (error) {
-      setError('Failed to resend code. Please try again.');
+    } catch (error: any) {
+      setError(error?.response?.data?.message || 'Failed to resend code. Please try again.');
     } finally {
       setIsResending(false);
     }
