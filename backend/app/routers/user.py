@@ -12,9 +12,15 @@ router = APIRouter(prefix="/user", tags=["User"])
 
 @router.get("/profile/", response_model=ProfileResponse)
 async def get_profile(current_user: User = Depends(get_current_user)):
+    icon_str = ""
+    if current_user.icon:
+        if isinstance(current_user.icon, bytes):
+            icon_str = base64.b64encode(current_user.icon).decode('utf-8')
+        elif isinstance(current_user.icon, str):
+            icon_str = current_user.icon
     return ProfileResponse(
-        icon=current_user.icon,
-        username=current_user.username,
+        icon=icon_str,
+        username=current_user.username or "",
         date_of_birth=current_user.date_of_birth,
         height=current_user.height,
         sex=current_user.sex

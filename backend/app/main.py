@@ -2,6 +2,7 @@ from fastapi import FastAPI
 import uvicorn
 from fastapi.middleware.cors import CORSMiddleware
 from app.routers import auth, user, friends, vital_data, objectives, chat
+from fastapi.middleware.cors import CORSMiddleware
 
 app = FastAPI(
     title="Health Tracking API", 
@@ -23,6 +24,14 @@ app.include_router(friends.router)
 app.include_router(vital_data.router)
 app.include_router(objectives.router)
 app.include_router(chat.router)
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # 或指定你的前端地址
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 @app.get("/")
 async def root():
