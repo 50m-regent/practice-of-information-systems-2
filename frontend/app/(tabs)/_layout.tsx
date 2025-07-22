@@ -1,43 +1,78 @@
 import { Tabs } from 'expo-router';
-import React from 'react';
-import { Platform } from 'react-native';
-
-import { HapticTab } from '@/components/HapticTab';
-import { IconSymbol } from '@/components/ui/IconSymbol';
-import TabBarBackground from '@/components/ui/TabBarBackground';
-import { Colors } from '@/constants/Colors';
-import { useColorScheme } from '@/hooks/useColorScheme';
+import { Chrome as Home, Users, ChartBar as BarChart3, MessageCircle } from 'lucide-react-native';
+import { Image } from 'react-native';
 
 export default function TabLayout() {
-  const colorScheme = useColorScheme();
-
   return (
     <Tabs
       screenOptions={{
-        tabBarActiveTintColor: Colors[colorScheme ?? 'light'].tint,
         headerShown: false,
-        tabBarButton: HapticTab,
-        tabBarBackground: TabBarBackground,
-        tabBarStyle: Platform.select({
-          ios: {
-            // Use a transparent background on iOS to show the blur effect
-            position: 'absolute',
-          },
-          default: {},
-        }),
-      }}>
+        tabBarStyle: {
+          backgroundColor: '#FFFFFF',
+          borderTopWidth: 1,
+          borderTopColor: '#E5E7EB',
+          paddingBottom: 4,
+          paddingTop: 8,
+          height: 60
+        },
+        tabBarActiveTintColor: '#3B82F6',
+        tabBarInactiveTintColor: '#6B7280',
+        tabBarLabelStyle: {
+          fontSize: 11,
+          fontFamily: 'Inter-Medium'
+        }
+      }}
+    >
       <Tabs.Screen
         name="index"
         options={{
-          title: 'Home',
-          tabBarIcon: ({ color }) => <IconSymbol size={28} name="house.fill" color={color} />,
+          tabBarIcon: ({ focused }) => (
+            <Image
+              source={require('../../assets/images/tab-profile.png')}
+              style={{ width: 22, height: 22, tintColor: focused ? '#3B82F6' : '#6B7280' }}
+              resizeMode="contain"
+            />
+          ),
+          tabBarShowLabel: false
         }}
       />
       <Tabs.Screen
-        name="explore"
+        name="friends"
         options={{
-          title: 'Explore',
-          tabBarIcon: ({ color }) => <IconSymbol size={28} name="paperplane.fill" color={color} />,
+          tabBarIcon: ({ focused }) => (
+            <Image
+              source={require('../../assets/images/tab-friends.png')}
+              style={{ width: 22, height: 22, tintColor: focused ? '#3B82F6' : '#6B7280' }}
+              resizeMode="contain"
+            />
+          ),
+          tabBarShowLabel: false
+        }}
+      />
+      <Tabs.Screen
+        name="stats"
+        options={{
+          tabBarIcon: ({ focused }) => (
+            <Image
+              source={require('../../assets/images/tab-stats.png')}
+              style={{ width: 22, height: 22, tintColor: focused ? '#3B82F6' : '#6B7280' }}
+              resizeMode="contain"
+            />
+          ),
+          tabBarShowLabel: false
+        }}
+      />
+      <Tabs.Screen
+        name="chat"
+        options={{
+          tabBarIcon: ({ focused }) => (
+            <Image
+              source={require('../../assets/images/tab-chat.png')}
+              style={{ width: 22, height: 22, tintColor: focused ? '#3B82F6' : '#6B7280' }}
+              resizeMode="contain"
+            />
+          ),
+          tabBarShowLabel: false
         }}
       />
     </Tabs>
