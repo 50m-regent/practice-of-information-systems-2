@@ -1,0 +1,12 @@
+
+
+frontend/.expo/
+frontend/.expo-shared/
+
+# backend 忽略
+backend/venv*/
+backend/test.db
+
+# node_modules 忽略
+node_modules/
+frontend/node_modules/

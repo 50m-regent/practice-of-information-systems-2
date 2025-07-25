@@ -1,5 +1,5 @@
 
-
+backend/venv311/
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[codz]
@@ -7,6 +7,8 @@ __pycache__/
 
 .DS_Store
 
+backend/test.db
+*.db
 # C extensions
 *.so
 
