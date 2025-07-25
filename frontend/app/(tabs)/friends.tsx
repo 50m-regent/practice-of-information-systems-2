@@ -1,19 +1,45 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { UserPlus } from 'lucide-react-native';
 import { UserAvatar } from '@/components/UserAvatar';
-import { mockFriends } from '@/data/mockData';
+import { getFriends } from '@/api/friends';
+import { useFocusEffect } from '@react-navigation/native';
 
 export default function FriendsScreen() {
+  const [friends, setFriends] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  const fetchFriends = async () => {
+    setLoading(true);
+    try {
+      const data = await getFriends();
+      setFriends(data);
+    } catch (e) {
+      setFriends([]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useFocusEffect(
+    React.useCallback(() => {
+      fetchFriends();
+    }, [])
+  );
+
   const handleAddFriend = () => {
     router.push('/add-friend');
   };
 
-  const handleFriendPress = (friendId: string) => {
+  const handleFriendPress = (friendId: string | number) => {
     router.push(`/friend-detail?id=${friendId}`);
   };
+
+  if (loading) {
+    return <Text style={{ textAlign: 'center', marginTop: 40 }}>Loading...</Text>;
+  }
 
   return (
     <SafeAreaView style={styles.container}>
@@ -26,27 +52,22 @@ export default function FriendsScreen() {
 
       <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
         <View style={styles.friendsList}>
-          {mockFriends.map(friend => (
+          {friends.map(friend => (
             <TouchableOpacity
-              key={friend.id}
+              key={friend.user_id}
               style={styles.friendItem}
-              onPress={() => handleFriendPress(friend.id)}
+              onPress={() => handleFriendPress(friend.user_id)}
             >
-              <UserAvatar uri={friend.avatar} size={50} />
+              <UserAvatar uri={typeof friend.icon === 'string' && friend.icon.length > 0 ? `data:image/png;base64,${friend.icon}` : ''} size={50} />
               <View style={styles.friendInfo}>
-                <Text style={styles.friendName}>{friend.name}</Text>
-                <Text style={styles.friendAge}>Age {friend.age}</Text>
-              </View>
-              <View style={styles.friendStats}>
-                <Text style={styles.goalsCount}>
-                  {friend.goals.length} goal{friend.goals.length !== 1 ? 's' : ''}
-                </Text>
+                <Text style={styles.friendName}>{friend.username}</Text>
+                <Text style={styles.friendAge}>Age {friend.age === -1 ? '未設定' : friend.age}</Text>
               </View>
             </TouchableOpacity>
           ))}
         </View>
 
-        {mockFriends.length === 0 && (
+        {friends.length === 0 && (
           <View style={styles.emptyState}>
             <Text style={styles.emptyTitle}>No friends yet</Text>
             <Text style={styles.emptyText}>

@@ -4,6 +4,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { Mail, ArrowRight, RefreshCw, Check, X } from 'lucide-react-native';
 import { sendOtpToEmail, verifyOtpAndGetToken } from '../api/auth';
+import { saveToken } from '@/utils/tokenStorage';
 
 const { width, height } = Dimensions.get('window');
 
@@ -69,8 +70,7 @@ export default function LoginScreen() {
       // 调用API验证OTP并获取token
       const data = await verifyOtpAndGetToken(otp);
       // 保存token到本地（可用AsyncStorage/localStorage等）
-      // 这里只是示例，实际项目建议安全存储
-      localStorage?.setItem?.('access_token', data.access_token);
+      await saveToken(data.access_token);
       // 跳转到主页面
       router.replace('/(tabs)');
     } catch (error: any) {

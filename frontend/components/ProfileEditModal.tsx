@@ -15,6 +15,7 @@ import { X, Camera, Calendar, User, Ruler } from 'lucide-react-native';
 import { UserAvatar } from './UserAvatar';
 import { User as UserType } from '@/types';
 import * as ImagePicker from 'expo-image-picker';
+import * as FileSystem from 'expo-file-system';
 
 interface ProfileEditModalProps {
   visible: boolean;
@@ -55,9 +56,14 @@ export function ProfileEditModal({ visible, user, onClose, onSave }: ProfileEdit
     return Object.keys(newErrors).length === 0;
   };
 
-  const handleSave = () => {
+  const handleSave = async () => {
     if (validateForm()) {
-      onSave(editedUser);
+      let avatarBase64 = editedUser.avatar;
+      if (avatarBase64 && avatarBase64.startsWith('file://')) {
+        // 读取文件并转为 base64
+        avatarBase64 = await FileSystem.readAsStringAsync(avatarBase64, { encoding: FileSystem.EncodingType.Base64 });
+      }
+      onSave({ ...editedUser, avatar: avatarBase64 });
     }
   };
 

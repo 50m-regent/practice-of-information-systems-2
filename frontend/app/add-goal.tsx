@@ -4,6 +4,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { ArrowLeft, Target, Footprints, Heart, Scale, Activity } from 'lucide-react-native';
 import { AddGoalModal } from '@/components/AddGoalModal';
+import { createObjective } from '@/api/objectives';
 
 const goalTypes = [
   {
@@ -78,10 +79,14 @@ export default function AddGoalScreen() {
 
   const handleGoalSave = async (data: any) => {
     try {
-      // Here you would typically save to your backend/database
-      // For now, we'll simulate the save
-      await new Promise(resolve => setTimeout(resolve, 500));
-      
+      // 调用后端API创建目标
+      const payload = {
+        data_name: data.type,
+        start_date: data.startDate,
+        end_date: data.endDate,
+        objective_value: data.targetValue,
+      };
+      await createObjective(payload);
       Alert.alert(
         'Success',
         'Goal created successfully!',
