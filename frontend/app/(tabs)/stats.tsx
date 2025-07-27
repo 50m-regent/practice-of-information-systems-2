@@ -8,8 +8,7 @@ const statItems = [
   { id: 'steps', title: '歩数', color: '#2D4CC8' },
   { id: 'blood_pressure', title: '血圧', color: '#2D4CC8' },
   { id: 'heart_rate', title: '脈拍', color: '#2D4CC8' },
-  { id: 'weight', title: '項目名', color: '#2D4CC8' },
-  { id: 'distance', title: '項目名', color: '#2D4CC8' },
+
 ];
 
 export default function StatsScreen() {
