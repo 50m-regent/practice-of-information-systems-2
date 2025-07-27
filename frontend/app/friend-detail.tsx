@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router, useLocalSearchParams } from 'expo-router';
@@ -6,11 +6,31 @@ import { ArrowLeft, Calendar, Target } from 'lucide-react-native';
 import { UserAvatar } from '@/components/UserAvatar';
 import { ProgressBar } from '@/components/ProgressBar';
 import { mockFriends } from '@/data/mockData';
+import { getFriendDetail } from '@/api/friends';
+import { ChartCard } from '@/components/ChartCard';
 
 export default function FriendDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
-  const friend = mockFriends.find(f => f.id === id);
+  const [friend, setFriend] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
 
+  useEffect(() => {
+    if (!id) return;
+    (async () => {
+      try {
+        const data = await getFriendDetail(id);
+        setFriend(data);
+      } catch (e) {
+        setFriend(null);
+      } finally {
+        setLoading(false);
+      }
+    })();
+  }, [id]);
+
+  if (loading) {
+    return <Text style={{ textAlign: 'center', marginTop: 40 }}>Loading...</Text>;
+  }
   if (!friend) {
     return (
       <SafeAreaView style={styles.container}>
@@ -24,109 +44,71 @@ export default function FriendDetailScreen() {
     );
   }
 
+  // vital_data 预处理，按 name 分组
+  const vitalTypes = ['血圧', '歩数', '脈拍'];
+  const vitalMap: Record<string, { date: string; value: number }[]> = {};
+  (friend.vital_data || []).forEach((item: any) => {
+    if (!vitalMap[item.data_name]) vitalMap[item.data_name] = [];
+    vitalMap[item.data_name].push({ date: item.date, value: item.value });
+  });
+
+  // 生成图表数据
+  function getChartData(type: string) {
+    const dataArr = vitalMap[type] || [];
+    // 取最近7天
+    const sorted = [...dataArr].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+    const last7 = sorted.slice(-7);
+    return {
+      labels: last7.map(d => {
+        const dt = new Date(d.date);
+        return `${dt.getMonth() + 1}/${dt.getDate()}`;
+      }),
+      datasets: [
+        {
+          data: last7.map(d => d.value),
+          color: (opacity = 1) => `rgba(59, 130, 246, ${opacity})`,
+          strokeWidth: 2
+        }
+      ]
+    };
+  }
+
+  function getTodayValue(type: string) {
+    const today = new Date().toISOString().slice(0, 10);
+    const found = (vitalMap[type] || []).find(d => d.date.slice(0, 10) === today);
+    return found ? found.value : null;
+  }
+
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
         <TouchableOpacity style={styles.headerBackButton} onPress={() => router.back()}>
           <ArrowLeft size={24} color="#111827" />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Friend Profile</Text>
+        <Text style={styles.headerTitle}>{friend.username}</Text>
         <View style={styles.placeholder} />
       </View>
-
       <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
-        {/* Friend Profile Header */}
-        <View style={styles.profileHeader}>
-          <UserAvatar uri={friend.avatar} size={80} />
-          <View style={styles.profileInfo}>
-            <Text style={styles.friendName}>{friend.name}</Text>
-            <View style={styles.friendMeta}>
-              <Calendar size={14} color="#6B7280" />
-              <Text style={styles.friendAge}>Age {friend.age}</Text>
-            </View>
-          </View>
+        <View style={{ alignItems: 'center', marginVertical: 24 }}>
+                        <UserAvatar uri={friend.icon ? `data:image/png;base64,${friend.icon}` : ''} size={80} />
+          <Text style={{ fontSize: 18, color: '#6B7280', marginTop: 8 }}>Age {friend.age === -1 ? '未設定' : friend.age}</Text>
         </View>
-
-        {/* Friend's Goals */}
-        <View style={styles.goalsSection}>
-          <View style={styles.sectionHeader}>
-            <Target size={20} color="#3B82F6" />
-            <Text style={styles.sectionTitle}>Goals</Text>
-          </View>
-
-          {friend.goals.length > 0 ? (
-            friend.goals.map(goal => {
-              const progress = goal.currentValue / goal.targetValue;
-              
+        {/* Vital Data Cards */}
+        {vitalTypes.map(type => {
+          const chartData = getChartData(type);
+          const todayValue = getTodayValue(type);
+          const isBar = type === '歩数';
               return (
-                <View key={goal.id} style={styles.goalCard}>
-                  <Text style={styles.goalTitle}>{goal.title}</Text>
-                  
-                  <View style={styles.goalProgress}>
-                    <View style={styles.progressHeader}>
-                      <Text style={styles.progressText}>
-                        {goal.currentValue.toLocaleString()} / {goal.targetValue.toLocaleString()} {goal.unit}
-                      </Text>
-                      <Text style={styles.progressPercentage}>
-                        {Math.round(progress * 100)}%
-                      </Text>
-                    </View>
-                    <ProgressBar 
-                      progress={progress} 
-                      height={12} 
-                      progressColor="#10B981"
-                      backgroundColor="#E5E7EB"
-                    />
-                  </View>
-
-                  <View style={styles.goalMeta}>
-                    <Text style={styles.goalPeriod}>
-                      {goal.period.charAt(0).toUpperCase() + goal.period.slice(1)} Goal
-                    </Text>
-                    <Text style={styles.goalDate}>
-                      Started {new Date(goal.createdAt).toLocaleDateString()}
-                    </Text>
-                  </View>
-                </View>
-              );
-            })
-          ) : (
-            <View style={styles.noGoalsContainer}>
-              <Text style={styles.noGoalsTitle}>No Goals Yet</Text>
-              <Text style={styles.noGoalsText}>
-                {friend.name} hasn't set any goals yet
-              </Text>
+            <View key={type} style={{ marginHorizontal: 16 }}>
+              <ChartCard
+                type={isBar ? 'bar' : 'line'}
+                title={type}
+                currentValue={typeof todayValue === 'number' ? todayValue : 0}
+                data={chartData}
+              />
             </View>
-          )}
-        </View>
-
-        {/* Stats Summary */}
-        <View style={styles.statsSection}>
-          <Text style={styles.sectionTitle}>Activity Summary</Text>
-          
-          <View style={styles.statsGrid}>
-            <View style={styles.statCard}>
-              <Text style={styles.statValue}>{friend.goals.length}</Text>
-              <Text style={styles.statLabel}>Active Goals</Text>
-            </View>
-            
-            <View style={styles.statCard}>
-              <Text style={styles.statValue}>
-                {friend.goals.filter(g => g.currentValue / g.targetValue >= 1).length}
-              </Text>
-              <Text style={styles.statLabel}>Completed</Text>
-            </View>
-            
-            <View style={styles.statCard}>
-              <Text style={styles.statValue}>
-                {friend.goals.length > 0 
-                  ? Math.round(friend.goals.reduce((acc, g) => acc + (g.currentValue / g.targetValue), 0) / friend.goals.length * 100)
-                  : 0}%
-              </Text>
-              <Text style={styles.statLabel}>Avg Progress</Text>
-            </View>
-          </View>
-        </View>
+          );
+        })}
       </ScrollView>
     </SafeAreaView>
   );

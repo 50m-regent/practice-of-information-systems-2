@@ -1,9 +1,11 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert, Platform } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { ArrowLeft, Target, Footprints, Heart, Scale, Activity } from 'lucide-react-native';
 import { AddGoalModal } from '@/components/AddGoalModal';
+import { Toast } from '@/components/Toast';
+import { createObjective } from '@/api/objectives';
 
 const goalTypes = [
   {
@@ -65,6 +67,11 @@ const goalTypes = [
 export default function AddGoalScreen() {
   const [selectedGoal, setSelectedGoal] = useState<typeof goalTypes[0] | null>(null);
   const [isModalVisible, setIsModalVisible] = useState(false);
+  const [toast, setToast] = useState<{ visible: boolean; message: string; type: 'success' | 'error' }>({
+    visible: false,
+    message: '',
+    type: 'success'
+  });
 
   const handleGoalSelect = (goal: typeof goalTypes[0]) => {
     setSelectedGoal(goal);
@@ -78,26 +85,56 @@ export default function AddGoalScreen() {
 
   const handleGoalSave = async (data: any) => {
     try {
-      // Here you would typically save to your backend/database
-      // For now, we'll simulate the save
-      await new Promise(resolve => setTimeout(resolve, 500));
+      // 调用后端API创建目标
+      const payload = {
+        data_name: data.type,
+        start_date: data.startDate,
+        end_date: data.endDate,
+        objective_value: data.targetValue,
+      };
+      await createObjective(payload);
       
-      Alert.alert(
-        'Success',
-        'Goal created successfully!',
-        [
-          {
-            text: 'OK',
-            onPress: () => {
-              setIsModalVisible(false);
-              setSelectedGoal(null);
-              router.back();
+      // 使用跨平台的提示方式
+      if (Platform.OS === 'web') {
+        // 网页端使用Toast
+        setToast({
+          visible: true,
+          message: '目標が正常に作成されました！',
+          type: 'success'
+        });
+        // 延迟返回，让用户看到提示
+        setTimeout(() => {
+          setIsModalVisible(false);
+          setSelectedGoal(null);
+          router.back();
+        }, 2000);
+      } else {
+        // 移动端使用Alert
+        Alert.alert(
+          'Success',
+          'Goal created successfully!',
+          [
+            {
+              text: 'OK',
+              onPress: () => {
+                setIsModalVisible(false);
+                setSelectedGoal(null);
+                router.back();
+              }
             }
-          }
-        ]
-      );
+          ]
+        );
+      }
     } catch (error) {
-      Alert.alert('Error', 'Failed to create goal. Please try again.');
+      if (Platform.OS === 'web') {
+        setToast({
+          visible: true,
+          message: '目標の作成に失敗しました。もう一度お試しください。',
+          type: 'error'
+        });
+      } else {
+        Alert.alert('Error', 'Failed to create goal. Please try again.');
+      }
     }
   };
 
@@ -149,6 +186,14 @@ export default function AddGoalScreen() {
         selectedType={selectedGoal}
         onClose={handleModalClose}
         onSave={handleGoalSave}
+      />
+      
+      {/* Toast Notification */}
+      <Toast
+        visible={toast.visible}
+        message={toast.message}
+        type={toast.type}
+        onHide={() => setToast(prev => ({ ...prev, visible: false }))}
       />
     </SafeAreaView>
   );

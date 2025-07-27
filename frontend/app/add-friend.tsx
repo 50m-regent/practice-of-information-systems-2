@@ -6,6 +6,10 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { ArrowLeft, Camera, QrCode, Users, Scan } from 'lucide-react-native';
 import { CameraView, CameraType, useCameraPermissions } from 'expo-camera';
+import { addFriend } from '@/api/friends';
+import { getToken } from '@/utils/tokenStorage';
+import { Toast } from '@/components/Toast';
+import { getUserId } from '@/api/auth';
 
 const { width } = Dimensions.get('window');
 const QR_SIZE = width * 0.6;
@@ -14,11 +18,30 @@ export default function AddFriendScreen() {
   const [mode, setMode] = useState<'scanner' | 'display'>('scanner');
   const [permission, requestPermission] = useCameraPermissions();
   const [scannedData, setScannedData] = useState<string | null>(null);
+  const [userQRData, setUserQRData] = useState<string>('');
+  const [toast, setToast] = useState<{ visible: boolean; message: string; type: 'success' | 'error' }>({
+    visible: false,
+    message: '',
+    type: 'success'
+  });
 
   // Mock user QR code data - in a real app, this would be the user's unique ID
-  const userQRData = currentUser.id;
+  // const userQRData = currentUser.id; // This line is removed
 
   useEffect(() => {
+    (async () => {
+      const token = await getToken();
+      if (token) {
+        try {
+          const data = await getUserId(token);
+          console.log('getUserId data:', data);
+          const myId = data.user_id || data.id;
+          setUserQRData(myId ? myId.toString() : '');
+        } catch (e) {
+          setUserQRData('');
+        }
+      }
+    })();
     if (Platform.OS === 'web') {
       // On web, we'll show a message about camera limitations
       console.log('Camera functionality limited on web platform');
@@ -27,44 +50,62 @@ export default function AddFriendScreen() {
 
   const handleBarCodeScanned = ({ data }: { data: string }) => {
     if (scannedData) return; // Prevent multiple scans
-    
     setScannedData(data);
-    
-    const scannedUserId = data; // scanned data as user_ID
-
-      if (scannedUserId) {
-        Alert.alert(
-          'Friend Request',
-          `Send a friend request to user ${scannedUserId}?`,
-          [
-            {
-              text: 'Cancel',
-              style: 'cancel',
-              onPress: () => setScannedData(null)
-            },
-            {
-              text: 'Add Friend',
-              onPress: () => {
-                // Here you would typically send the friend request to your backend
-                Alert.alert(
-                  'Success',
-                  'Friend request sent!',
-                  [
-                    {
-                      text: 'OK',
-                      onPress: () => router.back()
-                    }
-                  ]
-                );
+    const scannedUserId = data;
+    if (scannedUserId) {
+      Alert.alert(
+        '友達追加',
+        '友達を追加しますか？',
+        [
+          {
+            text: 'キャンセル',
+            style: 'cancel',
+            onPress: () => setScannedData(null)
+          },
+          {
+            text: '追加',
+            onPress: async () => {
+              try {
+                const token = await getToken();
+                if (!token) throw new Error('No token');
+                const res = await addFriend(scannedUserId); // scannedUserId 作为 friend_id 传递
+                let msg = res?.message || 'Friend added successfully';
+                
+                if (Platform.OS === 'web') {
+                  setToast({
+                    visible: true,
+                    message: '友達が正常に追加されました！',
+                    type: 'success'
+                  });
+                  setTimeout(() => {
+                    router.back();
+                  }, 2000);
+                } else {
+                  Alert.alert('Success', msg, [
+                    { text: 'OK', onPress: () => router.back() }
+                  ]);
+                }
+              } catch (e: any) {
+                if (Platform.OS === 'web') {
+                  setToast({
+                    visible: true,
+                    message: e?.message || '友達の追加に失敗しました。',
+                    type: 'error'
+                  });
+                } else {
+                  Alert.alert('Error', e?.message || 'Failed to add friend', [
+                    { text: 'OK', onPress: () => setScannedData(null) }
+                  ]);
+                }
               }
             }
-          ]
-        );
-      } else {
-        Alert.alert('Invalid QR Code', 'This QR code is not a valid friend request.');
-        setScannedData(null);
-      }
-    
+          }
+        ]
+      );
+    } else {
+      Alert.alert('Invalid QR Code', 'This QR code is not a valid friend code.');
+      setScannedData(null);
+    }
   };
 
   const renderCameraView = () => {
@@ -131,16 +172,16 @@ export default function AddFriendScreen() {
     return (
       <View style={styles.qrDisplayContainer}>
         <View style={styles.qrCodeContainer}>
-          <QRCode
-          value={userQRData}
-          size={QR_SIZE * 0.9}
-          color="#111827"
-          backgroundColor='white'
-          logo={{ uri: currentUser.avatar }}
-          logoSize={40}
-          logoBackgroundColor='transparent'
-          logoBorderRadius={20}
-          />
+          {userQRData ? (
+            <QRCode
+              value={userQRData}
+              size={QR_SIZE * 0.9}
+              color="#111827"
+              backgroundColor="white"
+            />
+          ) : (
+            <Text style={{ textAlign: 'center', color: '#888' }}>Loading QR code...</Text>
+          )}
         </View>
         
         <View style={styles.qrInfo}>
@@ -203,10 +244,18 @@ export default function AddFriendScreen() {
             : 'Share this QR code with friends so they can add you to their network'
           }
         </Text>
-      </View>
-    </SafeAreaView>
-  );
-}
+              </View>
+        
+        {/* Toast Notification */}
+        <Toast
+          visible={toast.visible}
+          message={toast.message}
+          type={toast.type}
+          onHide={() => setToast(prev => ({ ...prev, visible: false }))}
+        />
+      </SafeAreaView>
+    );
+  }
 
 const styles = StyleSheet.create({
   container: {

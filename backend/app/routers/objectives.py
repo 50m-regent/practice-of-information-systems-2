@@ -1,6 +1,7 @@
 from fastapi import APIRouter, HTTPException, Depends
 from sqlalchemy.orm import Session
 from typing import List
+import base64
 
 from app.schemas.objective import (
     ObjectiveResponse, ObjectiveListResponse, 
@@ -53,9 +54,16 @@ async def get_objectives(current_user: User = Depends(get_current_user), db: Ses
                     if friend_value is not None:
                         friend_user = db.query(User).filter(User.id == friend).first()
                         if friend_user:
+                            icon_str = None
+                            if friend_user.icon:
+                                if isinstance(friend_user.icon, bytes):
+                                    icon_str = base64.b64encode(friend_user.icon).decode('utf-8')
+                                elif isinstance(friend_user.icon, str):
+                                    icon_str = friend_user.icon
                             friends.append({
-                                "friend_icon": friend_user.icon,
-                                "friend_info": friend_value
+                                "friend_icon": icon_str,
+                                "friend_info": friend_value,
+                                "friend_sex": friend_user.sex
                             })
 
             user_category = db.query(UserVitalCategory).filter(
@@ -117,6 +125,8 @@ async def create_objective(request: CreateObjectiveRequest, current_user: User =
     db.commit()
     db.refresh(objective)
     user = db.query(User).filter(User.id == current_user.id).first()
+    if user.objective is None:
+        user.objective = []
     user.objective.append(objective.id)
     db.commit()
     

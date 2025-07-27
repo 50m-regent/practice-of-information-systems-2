@@ -2,6 +2,7 @@ from fastapi import APIRouter, HTTPException, Depends
 from sqlalchemy.orm import Session
 from typing import List
 from datetime import datetime
+import base64
 
 from app.schemas.user import FriendListResponse, FriendDetailResponse, AddFriendRequest
 from app.utils.auth import get_current_user
@@ -28,11 +29,19 @@ async def get_friends(current_user: User = Depends(get_current_user), db: Sessio
                     if (today.month, today.day) < (friend.date_of_birth.month, friend.date_of_birth.day):
                         age -= 1
 
+                icon_str = None
+                if friend.icon:
+                    if isinstance(friend.icon, bytes):
+                        icon_str = base64.b64encode(friend.icon).decode('utf-8')
+                    elif isinstance(friend.icon, str):
+                        icon_str = friend.icon
+
                 friends.append(FriendListResponse(
                     user_id=friend.id,
                     username=friend.username,
-                    icon=None,
-                    age=age
+                    icon=icon_str,
+                    age=age,
+                    sex=friend.sex
                 ))
     
     return friends
@@ -80,15 +89,22 @@ async def add_friend(request: AddFriendRequest, current_user: User = Depends(get
     if not friend:
         raise HTTPException(status_code=404, detail="User not found")
     
+    # 当前用户加对方
     friends = current_user.friends or []
-    
-    if request.friend_id in friends:
-        return {"message": "Friend already exists"}
-    
-    friends.append(request.friend_id)
-    friends.sort()
-    current_user.friends = friends
+    if request.friend_id not in friends:
+        friends.append(request.friend_id)
+        friends.sort()
+        current_user.friends = friends
+
+    # 对方也加当前用户
+    friend_friends = friend.friends or []
+    if current_user.id not in friend_friends:
+        friend_friends.append(current_user.id)
+        friend_friends.sort()
+        friend.friends = friend_friends
+
     db.commit()
     db.refresh(current_user)
+    db.refresh(friend)
     
     return {"message": "Friend added successfully"}
