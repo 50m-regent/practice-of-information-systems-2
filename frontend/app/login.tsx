@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, TextInput, TouchableOpacity, Dimensions, KeyboardAvoidingView, Platform, Modal } from 'react-native';
+import { View, Text, StyleSheet, TextInput, TouchableOpacity, Dimensions, KeyboardAvoidingView, Platform, Modal, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { Mail, ArrowRight, RefreshCw, Check, X } from 'lucide-react-native';
 import { sendOtpToEmail, verifyOtpAndGetToken } from '../api/auth';
-import { saveToken } from '@/utils/tokenStorage';
+// ★★★ AsyncStorageをインポートします ★★★
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const { width, height } = Dimensions.get('window');
 
@@ -32,26 +33,18 @@ export default function LoginScreen() {
   };
 
   const handleEmailSubmit = async () => {
-    if (!email.trim()) {
-      setError('Please enter your email address');
+    if (!email.trim() || !validateEmail(email)) {
+      setError('有効なメールアドレスを入力してください');
       return;
     }
-
-    if (!validateEmail(email)) {
-      setError('Please enter a valid email address');
-      return;
-    }
-
     setError('');
     setIsLoading(true);
-
     try {
-      // 调用API发送OTP
       await sendOtpToEmail(email);
       setStep('otp');
       setCountdown(60);
     } catch (error: any) {
-      setError(error?.response?.data?.message || 'Failed to send verification code. Please try again.');
+      setError(error?.response?.data?.message || '認証コードの送信に失敗しました。');
     } finally {
       setIsLoading(false);
     }
@@ -59,27 +52,39 @@ export default function LoginScreen() {
 
   const handleOtpSubmit = async () => {
     if (otp.length !== 6) {
-      setError('Please enter the complete 6-digit code');
+      setError('6桁の認証コードを入力してください');
       return;
     }
-
     setError('');
     setIsLoading(true);
-
     try {
-      // 调用API验证OTP并获取token
       const data = await verifyOtpAndGetToken(otp);
-      // 保存token到本地（可用AsyncStorage/localStorage等）
-      await saveToken(data.access_token);
-      // 跳转到主页面
-      router.replace('/(tabs)');
+      
+      // ★★★ ここを修正します ★★★
+      if (data && data.access_token) {
+        const token = data.access_token;
+        // 確認用のログ
+        console.log('これからこのトークンを保存します:', token);
+        
+        // AsyncStorageを使って、'userToken'というキーで保存
+        await AsyncStorage.setItem('userToken', token);
+        console.log('トークンの保存が完了しました。');
+
+        // メイン画面に遷移
+        router.replace('/(tabs)');
+      } else {
+        throw new Error('アクセストークンが取得できませんでした。');
+      }
+      // ★★★ ここまで修正 ★★★
+
     } catch (error: any) {
-      setError(error?.response?.data?.detail || 'Invalid verification code. Please try again.');
+      setError(error?.response?.data?.detail || '認証コードが無効です。');
     } finally {
       setIsLoading(false);
     }
   };
 
+  // ... handleResendCode, handleBackToEmail, renderEmailScreen, renderOtpModal, styles などの他の部分は変更なし ...
   const handleResendCode = async () => {
     if (countdown > 0) return;
     setIsResending(true);
@@ -88,7 +93,7 @@ export default function LoginScreen() {
       await sendOtpToEmail(email);
       setCountdown(60);
     } catch (error: any) {
-      setError(error?.response?.data?.message || 'Failed to resend code. Please try again.');
+      setError(error?.response?.data?.message || 'コードの再送信に失敗しました。');
     } finally {
       setIsResending(false);
     }
@@ -180,14 +185,13 @@ export default function LoginScreen() {
       transparent={true}
       animationType="fade"
       statusBarTranslucent={true}
-      onRequestClose={() => {}} // 禁用Android返回键关闭
     >
       {/* Backdrop overlay */}
       <View style={styles.modalBackdrop}>
         <TouchableOpacity 
           style={styles.backdropTouchable}
           activeOpacity={1}
-          onPress={() => {}} // 禁用背景点击关闭
+          onPress={handleBackToEmail}
         />
         
         {/* Minimal modal content */}

@@ -1,10 +1,8 @@
 import React, { useRef, useState, useEffect } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { router } from 'expo-router';
-import { Plus, Calendar } from 'lucide-react-native';
+import { router, useFocusEffect } from 'expo-router';
 import { UserAvatar } from '@/components/UserAvatar';
-import { GoalCard } from '@/components/GoalCard';
 // ChartCardコンポーネントをインポートします
 import { ChartCard } from '@/components/ChartCard';
 import { User } from '@/types';
@@ -12,37 +10,43 @@ import { getUserProfile, updateUserProfile } from '@/api/auth';
 import { ProfileEditModal } from '@/components/ProfileEditModal';
 import { getToken } from '@/utils/tokenStorage';
 import { getObjectives } from '@/api/objectives';
-import { useFocusEffect } from '@react-navigation/native';
+// ★ 1. ライフログ取得用のAPI関数と型をインポート
+import { fetchLifeLogs, LifeLogSeries } from '@/api/user_vital';
 
-// 血圧グラフ用のサンプルデータ
-const mockBloodPressureData = {
-  labels: ["6/20", "6/21", "6/22", "6/23", "6/24", "6/25", "6/26"],
-  datasets: [
-    {
-      data: [120, 122, 118, 125, 123, 128, 130],
+// --- ヘルパー関数 ---
+/**
+ * APIから取得した単一のデータ系列を、グラフ表示用にフォーマットします。
+ * @param series APIから返ってきたデータ（例：体重データ）
+ * @returns ChartCardコンポーネントが要求する形式のデータ
+ */
+const formatDataForChart = (series: LifeLogSeries) => {
+  if (!series || !series.vitaldata_list || series.vitaldata_list.length === 0) {
+    return { labels: [], datasets: [{ data: [] }] };
+  }
+  const sortedData = [...series.vitaldata_list].sort((a, b) => new Date(b.x).getTime() - new Date(a.x).getTime());
+  const latestSevenPoints = sortedData.slice(0, 7);
+  const reversedPoints = latestSevenPoints.reverse();
+  
+  const labels = reversedPoints.map(item => {
+    const date = new Date(item.x);
+    return `${date.getMonth() + 1}/${date.getDate()}`;
+  });
+  const data = reversedPoints.map(item => Math.round(item.y));
+  
+  // 歩数グラフ用にバーの色を設定 (他のグラフにも影響しないように)
+  const barColors = series.data_name === '歩数' 
+    ? data.map(() => (opacity = 1) => `rgba(59, 130, 246, ${opacity})`)
+    : undefined;
+
+  return {
+    labels: labels,
+    datasets: [{ 
+      data: data,
       color: (opacity = 1) => `rgba(59, 130, 246, ${opacity})`,
-      strokeWidth: 2
-    }
-  ],
-};
-
-// 歩数グラフ用のサンプルデータ
-const mockStepsData = {
-  labels: ["6/20", "6/21", "6/22", "6/23", "6/24", "6/25", "6/26"],
-  datasets: [
-    {
-      data: [8000, 9200, 7500, 10500, 9800, 12000, 11500],
-      colors: [
-        (opacity = 1) => `rgba(59, 130, 246, ${opacity})`,
-        (opacity = 1) => `rgba(59, 130, 246, ${opacity})`,
-        (opacity = 1) => `rgba(59, 130, 246, ${opacity})`,
-        (opacity = 1) => `rgba(59, 130, 246, ${opacity})`,
-        (opacity = 1) => `rgba(59, 130, 246, ${opacity})`,
-        (opacity = 1) => `rgba(59, 130, 246, ${opacity})`,
-        (opacity = 1) => `rgba(59, 130, 246, ${opacity})`,
-      ]
-    }
-  ]
+      strokeWidth: 2,
+      colors: barColors,
+    }],
+  };
 };
 
 export default function HomeScreen() {
@@ -51,15 +55,18 @@ export default function HomeScreen() {
   const [loading, setLoading] = useState(true);
   const [goals, setGoals] = useState<any[]>([]);
   const [goalsLoading, setGoalsLoading] = useState(true);
-  const [barWidths, setBarWidths] = useState<{ [key: string]: number }>({});
+  // ★ 2. ライフログ用のStateを追加
+  const [lifeLogs, setLifeLogs] = useState<LifeLogSeries[]>([]);
+  const [lifeLogsLoading, setLifeLogsLoading] = useState(true);
+
   const barWidthsRef = useRef<{ [key: string]: number }>({});
+  const [barWidths, setBarWidths] = useState<{ [key: string]: number }>({});
 
   const fetchProfile = async () => {
     try {
       const token = await getToken();
       if (!token) return;
       const data = await getUserProfile(token);
-      // 适配后端字段到前端User类型
       setUser({
         id: '',
         name: data.username,
@@ -71,18 +78,11 @@ export default function HomeScreen() {
         avatar: data.icon ? `data:image/png;base64,${data.icon}` : '',
       });
     } catch (e) {
-      // 处理错误
+      console.error("Profile fetch error:", e);
     } finally {
       setLoading(false);
     }
   };
-
-  useFocusEffect(
-    React.useCallback(() => {
-      fetchProfile();
-      fetchGoals();
-    }, [])
-  );
 
   const fetchGoals = async () => {
     setGoalsLoading(true);
@@ -90,17 +90,39 @@ export default function HomeScreen() {
       const data = await getObjectives();
       setGoals(data);
     } catch (e) {
+      console.error("Goals fetch error:", e);
       setGoals([]);
     } finally {
       setGoalsLoading(false);
     }
   };
+  
+  // ★ 3. ライフログ取得用の関数を追加
+  const fetchLogs = async () => {
+    setLifeLogsLoading(true);
+    try {
+      const data = await fetchLifeLogs(); // 引数なしで全データを取得
+      setLifeLogs(data);
+    } catch(e) {
+      console.error("LifeLogs fetch error:", e);
+      setLifeLogs([]);
+    } finally {
+      setLifeLogsLoading(false);
+    }
+  };
+
+  useFocusEffect(
+    React.useCallback(() => {
+      fetchProfile();
+      fetchGoals();
+      fetchLogs(); // ★ 4. 画面表示時にライフログも取得
+    }, [])
+  );
 
   const handleProfileSave = async (updatedUser: User) => {
     try {
       const token = await getToken();
       if (!token) return;
-      // 只传 base64 字符串，不带 data:image 前缀
       let icon = updatedUser.avatar;
       if (icon && icon.startsWith('data:image')) {
         icon = icon.replace(/^data:image\/\w+;base64,/, '');
@@ -115,16 +137,14 @@ export default function HomeScreen() {
       setUser(updatedUser);
       setEditModalVisible(false);
     } catch (e) {
-      // 处理保存错误
+      console.error("Profile save error:", e);
     }
   };
 
-  if (loading || !user) return <Text>Loading...</Text>;
+  if (loading || !user) return <ActivityIndicator style={{flex: 1}} size="large" />;
 
-  // 用户信息显示的默认文案
   const displayName = user.name || 'ユーザー名未設定';
   const displayBirth = user.dateOfBirth ? (() => {
-    // 只取日期部分，忽略时间
     const dateOnly = user.dateOfBirth.split('T')[0];
     const [year, month, day] = dateOnly.split('-');
     return `${year}年${month}月${day}日生まれ`;
@@ -136,53 +156,48 @@ export default function HomeScreen() {
     router.push('/add-goal');
   };
 
-  // 目标数据暂时为空数组，后续有API再对接
-  // const goals: any[] = []; // This line is removed as goals are now fetched
-
   return (
     <SafeAreaView style={styles.container}>
       <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
-        {/* User Profile Header */}
+        {/* User Profile Header (変更なし) */}
         <View style={styles.header}>
-          <View style={styles.userInfoRow}>
-            <View style={styles.userInfoLeft}>
-              <UserAvatar uri={displayAvatar} size={64} />
-              <View style={styles.userDetailsColumn}>
-                <View style={styles.userNameRow}>
-                  <Text style={styles.userName} numberOfLines={1} ellipsizeMode="tail">{displayName}</Text>
-                  <View style={[
-                    styles.genderIndicator, 
-                    { backgroundColor: user.gender === 'female' ? '#FF69B4' : '#7086DB' }
-                  ]} />
+            <View style={styles.userInfoRow}>
+                <View style={styles.userInfoLeft}>
+                <UserAvatar uri={displayAvatar} size={64} />
+                <View style={styles.userDetailsColumn}>
+                    <View style={styles.userNameRow}>
+                    <Text style={styles.userName} numberOfLines={1} ellipsizeMode="tail">{displayName}</Text>
+                    <View style={[
+                        styles.genderIndicator, 
+                        { backgroundColor: user.gender === 'female' ? '#FF69B4' : '#7086DB' }
+                    ]} />
+                    </View>
+                    <Text style={styles.userBirth}>{displayBirth}</Text>
+                    <Text style={styles.userHeight}>{displayHeight}</Text>
                 </View>
-                <Text style={styles.userBirth}>{displayBirth}</Text>
-                <Text style={styles.userHeight}>{displayHeight}</Text>
-              </View>
+                </View>
+                <TouchableOpacity
+                style={styles.editProfileButton}
+                onPress={() => setEditModalVisible(true)}
+                activeOpacity={0.7}
+                >
+                <Text style={styles.editProfileButtonText}>変更</Text>
+                </TouchableOpacity>
             </View>
-            <TouchableOpacity
-              style={styles.editProfileButton}
-              onPress={() => setEditModalVisible(true)}
-              activeOpacity={0.7}
-            >
-              <Text style={styles.editProfileButtonText}>変更</Text>
-            </TouchableOpacity>
-          </View>
         </View>
 
-        {/* Goals Section */}
+        {/* Goals Section (変更なし) */}
         <View style={styles.section}>
           <View style={styles.objectivesCard}>
             <Text style={styles.objectivesTitle}>目標</Text>
             {goalsLoading ? (
-              <Text style={{ textAlign: 'center', marginVertical: 12 }}>Loading...</Text>
+              <ActivityIndicator style={{ marginVertical: 12 }} />
             ) : goals.length > 0 ? (
               goals.map(goal => {
                 const myProgress = goal.objective_value > 0 ? (goal.my_value || 0) / goal.objective_value : 0;
                 return (
                   <View key={goal.objective_id} style={styles.objectiveItem}>
-                    {/* 目标卡片 - 只包含进度条 */}
                     <View style={styles.objectiveCard}>
-                      {/* 自己的进度条，数值覆盖在 bar 上 */}
                       <View style={styles.userProgressContainer}>
                         <View style={styles.userProgressBar}>
                           <View style={{ 
@@ -197,7 +212,6 @@ export default function HomeScreen() {
                         </View>
                       </View>
                       
-                      {/* 好友进度条，头像浮动在 bar 上 */}
                       {goal.friends && goal.friends.length > 0 && goal.friends.map((f: any, idx: number) => {
                         const barKey = `${goal.objective_id}_${idx}`;
                         const barWidth = barWidths[barKey] || 0;
@@ -237,7 +251,6 @@ export default function HomeScreen() {
                       })}
                     </View>
                     
-                    {/* 目标信息 - 在卡片外面 */}
                     <View style={styles.objectiveInfoRow}>
                       <Text style={styles.objectiveName}>{goal.data_name}</Text>
                       <Text style={styles.objectivePeriod}>
@@ -256,29 +269,38 @@ export default function HomeScreen() {
           </View>
         </View>
 
-        {/* Life Log Section */}
+        {/* ★ 5. Life Log Section をAPIデータで動的に表示 */}
         <View style={styles.section}>
            <Text style={styles.sectionTitle}>Life Log</Text>
           
-          {/* ChartCardコンポーネントを呼び出して内容を反映 */}
-          <ChartCard 
-            type="line"
-            title="血圧"
-            currentValue={130}
-            data={mockBloodPressureData}
-          />
-          
-          <ChartCard
-            type="bar"
-            title="歩数"
-            currentValue={11500}
-            data={mockStepsData}
-          />
+          {lifeLogsLoading ? (
+            <ActivityIndicator style={{ marginVertical: 40 }} />
+          ) : lifeLogs.length > 0 ? (
+            lifeLogs.map((logSeries) => {
+              const chartData = formatDataForChart(logSeries);
+              const latestValue = chartData.datasets[0].data.slice(-1)[0] || 0;
+              if (chartData.labels.length === 0) return null;
+              
+              return (
+                <ChartCard 
+                  key={logSeries.data_name}
+                  type={logSeries.data_name === '歩数' ? 'bar' : 'line'}
+                  title={logSeries.data_name}
+                  currentValue={latestValue}
+                  data={chartData}
+                />
+              );
+            })
+          ) : (
+            <Text style={{ textAlign: 'center', marginVertical: 20, color: '#6B7280' }}>表示できるライフログがありません。</Text>
+          )}
 
           <TouchableOpacity style={styles.addLogButton} onPress={() => router.push('/add-data')}>
             <Text style={styles.addLogButtonText}>ライフログを追加</Text>
           </TouchableOpacity>
         </View>
+
+        {/* ProfileEditModal (変更なし) */}
         <ProfileEditModal
           visible={editModalVisible}
           user={user}
@@ -290,328 +312,274 @@ export default function HomeScreen() {
   );
 }
 
-
-
+// (stylesは変更なし)
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#F9FAFB'
-  },
-  scrollView: {
-    flex: 1
-  },
-  header: {
-    backgroundColor: '#FFFFFF',
-    paddingHorizontal: 20,
-    paddingVertical: 24,
-    borderBottomWidth: 1,
-    borderBottomColor: '#E5E7EB'
-  },
-  userInfo: {
-    flexDirection: 'row',
-    alignItems: 'center'
-  },
-  userDetails: {
-    marginLeft: 16,
-    flex: 1
-  },
-
-  userMeta: {
-    flexDirection: 'row',
-    alignItems: 'center'
-  },
-  userAge: {
-    marginLeft: 6,
-    fontSize: 14,
-    fontFamily: 'Inter-Regular',
-    color: '#6B7280'
-  },
-  userStats: {
-    marginLeft: 12,
-    fontSize: 14,
-    fontFamily: 'Inter-Regular',
-    color: '#6B7280'
-  },
-  section: {
-    paddingHorizontal: 20,
-    paddingVertical: 12
-  },
-  sectionHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 16
-  },
-  sectionTitle: {
-    fontSize: 20,
-    fontFamily: 'Inter-Bold',
-    color: '#111827',
-    marginBottom: 4,
-  },
-  addButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    backgroundColor: '#EFF6FF',
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: '#DBEAFE'
-  },
-  addButtonText: {
-    marginLeft: 4,
-    fontSize: 14,
-    fontFamily: 'Inter-Medium',
-    color: '#3B82F6'
-  },
-  addGoalButton: {
-    width: 345,
-    height: 32,
-    backgroundColor: '#F3F4F6',
-    borderWidth: 0.5,
-    borderColor: '#D2D5E3',
-    borderRadius: 8,
-    flexDirection: 'row',
-    justifyContent: 'center',
-    alignItems: 'center',
-    alignSelf: 'center',
-    // No marginTop, flush with content
-    // Neumorphic shadow (optional):
-    shadowColor: '#000',
-    shadowOffset: { width: 2, height: 2 },
-    shadowOpacity: 0.08,
-    shadowRadius: 4,
-    elevation: 1,
-  },
-  addGoalButtonText: {
-    fontFamily: 'Noto Sans JP',
-    fontWeight: '500',
-    fontSize: 12,
-    lineHeight: 14,
-    color: '#565869',
-    textAlign: 'center',
-  },
-  addLogButton: {
-    width: '100%', // fill parent, align with charts
-    height: 40, // slightly larger
-    backgroundColor: '#F3F4F6',
-    borderWidth: 0.5,
-    borderColor: '#D2D5E3',
-    borderRadius: 8,
-    flexDirection: 'row',
-    justifyContent: 'center',
-    alignItems: 'center',
-    alignSelf: 'stretch',
-    shadowColor: '#000',
-    shadowOffset: { width: 2, height: 2 },
-    shadowOpacity: 0.08,
-    shadowRadius: 4,
-    elevation: 1,
-  },
-  addLogButtonText: {
-    fontFamily: 'Noto Sans JP',
-    fontWeight: '500',
-    fontSize: 14,
-    lineHeight: 18,
-    color: '#565869',
-    textAlign: 'center',
-  },
-  userInfoRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingTop: 16,
-    width: 361,
-    height: 80,
-    gap: 8,
-  },
-  userInfoLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    flex: 1,
-    height: 64,
-  },
-  userDetailsColumn: {
-    flexDirection: 'column',
-    justifyContent: 'center',
-    alignItems: 'flex-start',
-    gap: 4,
-    minWidth: 0,
-    flex: 1,
-    height: 55,
-    marginLeft: 8,
-  },
-  userNameRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    height: 22,
-  },
-  userName: {
-    fontFamily: 'Noto Sans JP',
-    fontWeight: '900',
-    fontSize: 18,
-    lineHeight: 22,
-    letterSpacing: 0.03,
-    color: '#565869',
-    height: 22,
-    maxWidth: 120,
-  },
-  genderIndicator: {
-    width: 16,
-    height: 16,
-    borderWidth: 0.5,
-    borderColor: '#D2D5E3',
-    borderRadius: 8,
-  },
-  userBirth: {
-    fontFamily: 'Noto Sans JP',
-    fontWeight: '400',
-    fontSize: 12,
-    lineHeight: 14,
-    letterSpacing: 0.02,
-    color: '#565869',
-    width: 160, // was 122, now longer
-    height: 14,
-  },
-  userHeight: {
-    fontFamily: 'Noto Sans JP',
-    fontWeight: '400',
-    fontSize: 12,
-    lineHeight: 14,
-    letterSpacing: 0.02,
-    color: '#565869',
-    width: 39,
-    height: 14,
-  },
-  editProfileButton: {
-    width: 70, // bigger
-    height: 32, // bigger
-    backgroundColor: '#F3F4F6',
-    borderWidth: 0.5,
-    borderColor: '#D2D5E3',
-    borderRadius: 12,
-    flexDirection: 'row',
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingHorizontal: 12,
-    shadowColor: '#000',
-    shadowOffset: { width: 2, height: 2 },
-    shadowOpacity: 0.15,
-    shadowRadius: 4,
-    elevation: 2,
-  },
-  editProfileButtonText: {
-    fontFamily: 'Noto Sans JP',
-    fontWeight: '400',
-    fontSize: 14, // bigger
-    lineHeight: 18,
-    color: '#565869',
-    textAlign: 'center',
-    width: 40,
-    height: 18,
-  },
-  objectivesCard: {
-    backgroundColor: '#F3F4F6',
-    borderRadius: 12,
-    padding: 8,
-    gap: 8,
-    width: '100%',
-    alignSelf: 'stretch',
-    marginBottom: 16,
-  },
-  objectivesTitle: {
-    fontFamily: 'Noto Sans JP',
-    fontWeight: 'bold',
-    fontSize: 20,
-    lineHeight: 24,
-    letterSpacing: 0.03,
-    color: '#111827',
-    marginBottom: 8,
-  },
-  objectiveItem: {
-    marginBottom: 16,
-  },
-  objectiveCard: {
-    backgroundColor: '#F3F4F6',
-    borderWidth: 0.5,
-    borderColor: '#D2D5E3',
-    borderRadius: 12,
-    padding: 6,
-    marginBottom: 8,
-  },
-  userProgressContainer: {
-    marginBottom: 6,
-    position: 'relative',
-    justifyContent: 'center',
-  },
-  userProgressBar: {
-    height: 28,
-    borderRadius: 14,
-    overflow: 'hidden',
-    position: 'relative',
-  },
-  userProgressText: {
-    position: 'absolute',
-    left: 16,
-    top: 0,
-    bottom: 0,
-    justifyContent: 'center',
-    height: 28,
-  },
-  friendProgressRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 6,
-  },
-  friendProgressContainer: {
-    flex: 1,
-    position: 'relative',
-    marginRight: 32,
-  },
-  friendProgressBar: {
-    height: 24,
-    borderRadius: 12,
-    overflow: 'hidden',
-  },
-  friendAvatarContainer: {
-    position: 'absolute',
-    top: 1,
-    zIndex: 2,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.12,
-    shadowRadius: 4,
-    elevation: 2,
-  },
-  friendProgressText: {
-    position: 'absolute',
-    left: 16,
-    top: 0,
-    bottom: 0,
-    justifyContent: 'center',
-    height: 24,
-  },
-  objectiveInfoRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginTop: 1,
-    paddingHorizontal: 4,
-  },
-  objectiveName: {
-    fontFamily: 'Noto Sans JP',
-    fontWeight: '700',
-    fontSize: 14,
-    lineHeight: 16,
-    color: '#111827',
-  },
-  objectivePeriod: {
-    fontFamily: 'Noto Sans JP',
-    fontWeight: '400',
-    fontSize: 12,
-    lineHeight: 14,
-    color: '#6B7280',
-  },
+    container: {
+        flex: 1,
+        backgroundColor: '#F9FAFB'
+      },
+      scrollView: {
+        flex: 1
+      },
+      header: {
+        backgroundColor: '#FFFFFF',
+        paddingHorizontal: 20,
+        paddingVertical: 24,
+        borderBottomWidth: 1,
+        borderBottomColor: '#E5E7EB'
+      },
+      userInfoRow: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        paddingTop: 16,
+        // width: 361,
+        height: 80,
+        gap: 8,
+      },
+      userInfoLeft: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 8,
+        flex: 1,
+        height: 64,
+      },
+      userDetailsColumn: {
+        flexDirection: 'column',
+        justifyContent: 'center',
+        alignItems: 'flex-start',
+        gap: 4,
+        minWidth: 0,
+        flex: 1,
+        height: 55,
+        marginLeft: 8,
+      },
+      userNameRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 8,
+        height: 22,
+      },
+      userName: {
+        fontFamily: 'Noto Sans JP',
+        fontWeight: '900',
+        fontSize: 18,
+        lineHeight: 22,
+        letterSpacing: 0.03,
+        color: '#565869',
+        height: 22,
+        maxWidth: 120,
+      },
+      genderIndicator: {
+        width: 16,
+        height: 16,
+        borderWidth: 0.5,
+        borderColor: '#D2D5E3',
+        borderRadius: 8,
+      },
+      userBirth: {
+        fontFamily: 'Noto Sans JP',
+        fontWeight: '400',
+        fontSize: 12,
+        lineHeight: 14,
+        letterSpacing: 0.02,
+        color: '#565869',
+      },
+      userHeight: {
+        fontFamily: 'Noto Sans JP',
+        fontWeight: '400',
+        fontSize: 12,
+        lineHeight: 14,
+        letterSpacing: 0.02,
+        color: '#565869',
+      },
+      editProfileButton: {
+        width: 70, // bigger
+        height: 32, // bigger
+        backgroundColor: '#F3F4F6',
+        borderWidth: 0.5,
+        borderColor: '#D2D5E3',
+        borderRadius: 12,
+        flexDirection: 'row',
+        justifyContent: 'center',
+        alignItems: 'center',
+        paddingHorizontal: 12,
+        shadowColor: '#000',
+        shadowOffset: { width: 2, height: 2 },
+        shadowOpacity: 0.15,
+        shadowRadius: 4,
+        elevation: 2,
+      },
+      editProfileButtonText: {
+        fontFamily: 'Noto Sans JP',
+        fontWeight: '400',
+        fontSize: 14, // bigger
+        lineHeight: 18,
+        color: '#565869',
+        textAlign: 'center',
+      },
+      section: {
+        paddingHorizontal: 20,
+        paddingVertical: 12
+      },
+      sectionTitle: {
+        fontSize: 20,
+        fontFamily: 'Inter-Bold',
+        color: '#111827',
+        marginBottom: 4,
+      },
+      addGoalButton: {
+        // width: 345,
+        height: 32,
+        backgroundColor: '#F3F4F6',
+        borderWidth: 0.5,
+        borderColor: '#D2D5E3',
+        borderRadius: 8,
+        flexDirection: 'row',
+        justifyContent: 'center',
+        alignItems: 'center',
+        alignSelf: 'center',
+        paddingHorizontal: 16,
+        shadowColor: '#000',
+        shadowOffset: { width: 2, height: 2 },
+        shadowOpacity: 0.08,
+        shadowRadius: 4,
+        elevation: 1,
+      },
+      addGoalButtonText: {
+        fontFamily: 'Noto Sans JP',
+        fontWeight: '500',
+        fontSize: 12,
+        lineHeight: 14,
+        color: '#565869',
+        textAlign: 'center',
+      },
+      addLogButton: {
+        marginTop: 16,
+        width: '100%', // fill parent, align with charts
+        height: 40, // slightly larger
+        backgroundColor: '#F3F4F6',
+        borderWidth: 0.5,
+        borderColor: '#D2D5E3',
+        borderRadius: 8,
+        flexDirection: 'row',
+        justifyContent: 'center',
+        alignItems: 'center',
+        alignSelf: 'stretch',
+        shadowColor: '#000',
+        shadowOffset: { width: 2, height: 2 },
+        shadowOpacity: 0.08,
+        shadowRadius: 4,
+        elevation: 1,
+      },
+      addLogButtonText: {
+        fontFamily: 'Noto Sans JP',
+        fontWeight: '500',
+        fontSize: 14,
+        lineHeight: 18,
+        color: '#565869',
+        textAlign: 'center',
+      },
+      objectivesCard: {
+        backgroundColor: '#F3F4F6',
+        borderRadius: 12,
+        padding: 8,
+        gap: 8,
+        width: '100%',
+        alignSelf: 'stretch',
+        marginBottom: 16,
+      },
+      objectivesTitle: {
+        fontFamily: 'Noto Sans JP',
+        fontWeight: 'bold',
+        fontSize: 20,
+        lineHeight: 24,
+        letterSpacing: 0.03,
+        color: '#111827',
+        marginBottom: 8,
+      },
+      objectiveItem: {
+        marginBottom: 16,
+      },
+      objectiveCard: {
+        backgroundColor: '#F3F4F6',
+        borderWidth: 0.5,
+        borderColor: '#D2D5E3',
+        borderRadius: 12,
+        padding: 6,
+        marginBottom: 8,
+      },
+      userProgressContainer: {
+        marginBottom: 6,
+        position: 'relative',
+        justifyContent: 'center',
+      },
+      userProgressBar: {
+        height: 28,
+        borderRadius: 14,
+        overflow: 'hidden',
+        position: 'relative',
+      },
+      userProgressText: {
+        position: 'absolute',
+        left: 16,
+        top: 0,
+        bottom: 0,
+        justifyContent: 'center',
+        height: 28,
+      },
+      friendProgressRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        marginBottom: 6,
+      },
+      friendProgressContainer: {
+        flex: 1,
+        position: 'relative',
+        marginRight: 32,
+      },
+      friendProgressBar: {
+        height: 24,
+        borderRadius: 12,
+        overflow: 'hidden',
+      },
+      friendAvatarContainer: {
+        position: 'absolute',
+        top: 1,
+        zIndex: 2,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.12,
+        shadowRadius: 4,
+        elevation: 2,
+      },
+      friendProgressText: {
+        position: 'absolute',
+        left: 16,
+        top: 0,
+        bottom: 0,
+        justifyContent: 'center',
+        height: 24,
+      },
+      objectiveInfoRow: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        marginTop: 1,
+        paddingHorizontal: 4,
+      },
+      objectiveName: {
+        fontFamily: 'Noto Sans JP',
+        fontWeight: '700',
+        fontSize: 14,
+        lineHeight: 16,
+        color: '#111827',
+      },
+      objectivePeriod: {
+        fontFamily: 'Noto Sans JP',
+        fontWeight: '400',
+        fontSize: 12,
+        lineHeight: 14,
+        color: '#6B7280',
+      },
 });
