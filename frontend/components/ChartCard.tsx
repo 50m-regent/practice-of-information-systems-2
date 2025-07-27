@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, StyleSheet, Dimensions, Text, TouchableOpacity, Modal, TextInput } from 'react-native';
+import { View, StyleSheet, useWindowDimensions, Text, TouchableOpacity, Modal, TextInput } from 'react-native';
 import { LineChart, BarChart } from 'react-native-chart-kit';
 
 // コンポーネントが受け取るpropsの型を定義
@@ -20,10 +20,11 @@ interface ChartCardProps {
   };
 }
 
-const screenWidth = Dimensions.get('window').width;
+// const screenWidth = Dimensions.get('window').width;
 
 export function ChartCard({ type, data, title, currentValue }: ChartCardProps) {
   // 「フレンドに公開」ボタンの状態を管理
+  const { width: screenWidth } = useWindowDimensions(); 
   const [isShared, setIsShared] = useState(false);
   const [isModalVisible, setIsModalVisible] = useState(false);
   const [inputValue, setInputValue] = useState('');
