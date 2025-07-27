@@ -31,7 +31,12 @@ export function ProfileEditModal({ visible, user, onClose, onSave }: ProfileEdit
   const [errors, setErrors] = useState<Record<string, string>>({});
 
   useEffect(() => {
-    setEditedUser(user);
+    // 处理用户数据，确保日期格式正确
+    const processedUser = {
+      ...user,
+      dateOfBirth: user.dateOfBirth ? user.dateOfBirth.split('T')[0] : user.dateOfBirth
+    };
+    setEditedUser(processedUser);
     setErrors({});
   }, [user, visible]);
 
@@ -109,8 +114,10 @@ export function ProfileEditModal({ visible, user, onClose, onSave }: ProfileEdit
   const formatDateForDisplay = (dateString: string) => {
     if (!dateString) return '';
     try {
-      const date = new Date(dateString);
-      return date.toLocaleDateString();
+      // 只取日期部分，忽略时间
+      const dateOnly = dateString.split('T')[0];
+      const [year, month, day] = dateOnly.split('-');
+      return `${year}年${month}月${day}日`;
     } catch {
       return dateString;
     }
@@ -119,7 +126,9 @@ export function ProfileEditModal({ visible, user, onClose, onSave }: ProfileEdit
   const getCurrentAge = () => {
     if (!editedUser.dateOfBirth) return '';
     try {
-      const birthDate = new Date(editedUser.dateOfBirth);
+      // 只取日期部分，忽略时间
+      const dateOnly = editedUser.dateOfBirth.split('T')[0];
+      const birthDate = new Date(dateOnly);
       const today = new Date();
       const age = today.getFullYear() - birthDate.getFullYear();
       const monthDiff = today.getMonth() - birthDate.getMonth();
@@ -172,19 +181,6 @@ export function ProfileEditModal({ visible, user, onClose, onSave }: ProfileEdit
 
             {/* Form Fields */}
             <View style={styles.formSection}>
-              {/* Email (Read-only) */}
-              <View style={styles.fieldContainer}>
-                <Text style={styles.fieldLabel}>Email</Text>
-                <View style={[styles.inputContainer, styles.readOnlyInput]}>
-                  <TextInput
-                    style={[styles.textInput, styles.readOnlyText]}
-                    value={editedUser.email}
-                    editable={false}
-                  />
-                </View>
-                <Text style={styles.fieldHint}>Cannot be changed</Text>
-              </View>
-
               {/* Username */}
               <View style={styles.fieldContainer}>
                 <Text style={styles.fieldLabel}>
@@ -255,6 +251,39 @@ export function ProfileEditModal({ visible, user, onClose, onSave }: ProfileEdit
                   <Text style={styles.unitText}>cm</Text>
                 </View>
                 {errors.height && <Text style={styles.errorText}>{errors.height}</Text>}
+              </View>
+
+              {/* Gender */}
+              <View style={styles.fieldContainer}>
+                <Text style={styles.fieldLabel}>
+                  Gender <Text style={styles.required}>*</Text>
+                </Text>
+                <View style={styles.genderContainer}>
+                  <TouchableOpacity
+                    style={[
+                      styles.genderButton,
+                      editedUser.gender === 'male' && styles.genderButtonActive
+                    ]}
+                    onPress={() => setEditedUser(prev => ({ ...prev, gender: 'male' }))}
+                  >
+                    <Text style={[
+                      styles.genderButtonText,
+                      editedUser.gender === 'male' && styles.genderButtonTextActive
+                    ]}>男性</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={[
+                      styles.genderButton,
+                      editedUser.gender === 'female' && styles.genderButtonActive
+                    ]}
+                    onPress={() => setEditedUser(prev => ({ ...prev, gender: 'female' }))}
+                  >
+                    <Text style={[
+                      styles.genderButtonText,
+                      editedUser.gender === 'female' && styles.genderButtonTextActive
+                    ]}>女性</Text>
+                  </TouchableOpacity>
+                </View>
               </View>
             </View>
           </ScrollView>
@@ -447,5 +476,31 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontFamily: 'Inter-SemiBold',
     color: '#FFFFFF'
+  },
+  genderContainer: {
+    flexDirection: 'row',
+    gap: 12
+  },
+  genderButton: {
+    flex: 1,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#D1D5DB',
+    backgroundColor: '#FFFFFF',
+    alignItems: 'center'
+  },
+  genderButtonActive: {
+    borderColor: '#3B82F6',
+    backgroundColor: '#EFF6FF'
+  },
+  genderButtonText: {
+    fontSize: 14,
+    fontFamily: 'Inter-SemiBold',
+    color: '#6B7280'
+  },
+  genderButtonTextActive: {
+    color: '#3B82F6'
   }
 });

@@ -40,7 +40,8 @@ async def get_friends(current_user: User = Depends(get_current_user), db: Sessio
                     user_id=friend.id,
                     username=friend.username,
                     icon=icon_str,
-                    age=age
+                    age=age,
+                    sex=friend.sex
                 ))
     
     return friends

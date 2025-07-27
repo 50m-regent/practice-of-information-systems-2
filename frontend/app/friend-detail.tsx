@@ -90,7 +90,7 @@ export default function FriendDetailScreen() {
       </View>
       <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
         <View style={{ alignItems: 'center', marginVertical: 24 }}>
-          <UserAvatar uri={typeof friend.icon === 'string' && friend.icon.length > 0 ? `data:image/png;base64,${friend.icon}` : ''} size={80} />
+                        <UserAvatar uri={friend.icon ? `data:image/png;base64,${friend.icon}` : ''} size={80} />
           <Text style={{ fontSize: 18, color: '#6B7280', marginTop: 8 }}>Age {friend.age === -1 ? '未設定' : friend.age}</Text>
         </View>
         {/* Vital Data Cards */}
@@ -103,7 +103,7 @@ export default function FriendDetailScreen() {
               <ChartCard
                 type={isBar ? 'bar' : 'line'}
                 title={type}
-                currentValue={typeof todayValue === 'number' ? todayValue : ''}
+                currentValue={typeof todayValue === 'number' ? todayValue : 0}
                 data={chartData}
               />
             </View>

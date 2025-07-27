@@ -1,9 +1,10 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert, Modal, TextInput, Switch } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert, Modal, TextInput, Switch, Platform } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { ArrowLeft, Footprints, Heart, Scale, Activity, Zap, Moon, Plus } from 'lucide-react-native';
 import { AddDataModal } from '@/components/AddDataModal';
+import { Toast } from '@/components/Toast';
 
 const lifeLogTypes = [
   {
@@ -69,6 +70,11 @@ export default function AddDataScreen() {
   const [customName, setCustomName] = useState('');
   const [customAccumulate, setCustomAccumulate] = useState(false);
   const [customTypes, setCustomTypes] = useState<any[]>([]);
+  const [toast, setToast] = useState<{ visible: boolean; message: string; type: 'success' | 'error' }>({
+    visible: false,
+    message: '',
+    type: 'success'
+  });
 
   const handleTypeSelect = (type: typeof lifeLogTypes[0]) => {
     setSelectedType(type);
@@ -83,22 +89,44 @@ export default function AddDataScreen() {
   const handleDataSave = async (data: any) => {
     try {
       await new Promise(resolve => setTimeout(resolve, 500));
-      Alert.alert(
-        'Success',
-        'Data logged successfully!',
-        [
-          {
-            text: 'OK',
-            onPress: () => {
-              setIsModalVisible(false);
-              setSelectedType(null);
-              router.back();
+      
+      if (Platform.OS === 'web') {
+        setToast({
+          visible: true,
+          message: 'データが正常に記録されました！',
+          type: 'success'
+        });
+        setTimeout(() => {
+          setIsModalVisible(false);
+          setSelectedType(null);
+          router.back();
+        }, 2000);
+      } else {
+        Alert.alert(
+          'Success',
+          'Data logged successfully!',
+          [
+            {
+              text: 'OK',
+              onPress: () => {
+                setIsModalVisible(false);
+                setSelectedType(null);
+                router.back();
+              }
             }
-          }
-        ]
-      );
+          ]
+        );
+      }
     } catch (error) {
-      Alert.alert('Error', 'Failed to log data. Please try again.');
+      if (Platform.OS === 'web') {
+        setToast({
+          visible: true,
+          message: 'データの記録に失敗しました。もう一度お試しください。',
+          type: 'error'
+        });
+      } else {
+        Alert.alert('Error', 'Failed to log data. Please try again.');
+      }
     }
   };
 
@@ -200,6 +228,14 @@ export default function AddDataScreen() {
         animationType="fade"
         onRequestClose={() => setCustomModalVisible(false)}
       >
+      
+      {/* Toast Notification */}
+      <Toast
+        visible={toast.visible}
+        message={toast.message}
+        type={toast.type}
+        onHide={() => setToast(prev => ({ ...prev, visible: false }))}
+      />
         <View style={{ flex: 1, backgroundColor: 'rgba(230,231,238,0.75)', justifyContent: 'center', alignItems: 'center' }}>
           <View style={{
             width: 329,

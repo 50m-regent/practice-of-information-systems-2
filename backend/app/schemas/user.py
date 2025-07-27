@@ -30,6 +30,7 @@ class FriendListResponse(BaseModel):
     username: str
     icon: Optional[str] = None
     age: Optional[int] = -1
+    sex: Optional[bool] = None
 
 class FriendDetailResponse(BaseModel):
     user_id: int

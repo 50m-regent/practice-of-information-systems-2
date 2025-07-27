@@ -130,22 +130,18 @@ class AgentService:
             self.db.commit()
             
             return {
-                "message_id": assistant_message_obj.id,
-                "reply": reply_content,
+                "message": reply_content,
                 "conversation_id": conversation.id,
-                "function_called": function_call_info,
-                "function_result": function_result,
+                "function_calls": function_call_info,
                 "timestamp": assistant_message_obj.timestamp
             }
             
         except Exception as e:
             self.db.rollback()
             return {
-                "message_id": str(uuid.uuid4()),
-                "reply": f"申し訳ございません。エラーが発生しました: {str(e)}",
+                "message": f"申し訳ございません。エラーが発生しました: {str(e)}",
                 "conversation_id": conversation_id or "error",
-                "function_called": None,
-                "function_result": None,
+                "function_calls": None,
                 "timestamp": datetime.utcnow()
             }
 
@@ -179,10 +175,50 @@ class AgentService:
             ChatMessage.conversation_id == conversation_id
         ).order_by(ChatMessage.timestamp.asc()).all()
         
+        # ユーザーの現在の目標情報を取得
+        user_objectives_info = ""
+        if self.user.objective:
+            from models.objective import Objective
+            from models.vitaldataname import VitalDataName
+            
+            objectives_detail = []
+            for obj_id in self.user.objective:
+                obj = self.db.query(Objective).filter(Objective.id == obj_id).first()
+                if obj:
+                    data_name = self.db.query(VitalDataName).filter(VitalDataName.id == obj.name_id).first()
+                    if data_name:
+                        objectives_detail.append(f"ID {obj_id}: {data_name.name} = {obj.value}")
+            
+            if objectives_detail:
+                user_objectives_info = f"\n\n現在のユーザーの目標:\n" + "\n".join(objectives_detail)
+        
         # システムメッセージを最初に追加
         history = [{
             "role": "system",
-            "content": "あなたは健康管理アプリケーションのアシスタントです。ユーザーの健康目標の設定や管理、バイタルデータの記録などをサポートします。日本語で丁寧に応答してください。"
+            "content": f"""あなたは健康管理アプリケーションのアシスタントです。ユーザーの健康目標の設定や管理、バイタルデータの記録などをサポートします。
+
+重要な注意事項:
+1. 目標を更新・削除する際は、必ずユーザーが所有する目標IDを使用してください
+2. 目標IDは数値で指定され、ユーザーの目標リストに含まれている必要があります
+3. 自然言語での目標指定（例：「週間歩数目標」）を適切な目標IDにマッピングしてください
+4. 日本語で丁寧に応答してください
+
+目標提案機能:
+- ユーザーが「Suggest and set a personalized health goal for me」と言った場合、以下の手順で実行してください：
+  1. 現在の目標を確認（get_objectives）
+  2. 健康データを確認（get_vital_data）
+  3. ユーザーの年齢、性別、現在の目標を考慮して、適切な新しい目標を提案
+  4. 提案した目標を自動的に作成（create_objective）
+  5. 作成した目標の詳細を説明
+
+提案可能な目標例：
+- 歩数目標（steps, weekly_steps）
+- 運動時間（exercise_minutes）
+- 体重目標（weight）
+- 血圧目標（blood_pressure）
+- 睡眠時間（sleep_hours）
+
+{user_objectives_info}"""
         }]
         
         for message in messages:
