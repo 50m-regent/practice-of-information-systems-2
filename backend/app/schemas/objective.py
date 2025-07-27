@@ -3,8 +3,9 @@ from typing import List, Dict, Any, Optional
 from datetime import datetime
 
 class FriendData(BaseModel):
-    friend_icon: str
+    friend_icon: Optional[str] = None
     friend_info: float
+    friend_sex: Optional[bool] = None
 
 class ObjectiveResponse(BaseModel):
     objective_id: int

@@ -180,13 +180,14 @@ export default function LoginScreen() {
       transparent={true}
       animationType="fade"
       statusBarTranslucent={true}
+      onRequestClose={() => {}} // 禁用Android返回键关闭
     >
       {/* Backdrop overlay */}
       <View style={styles.modalBackdrop}>
         <TouchableOpacity 
           style={styles.backdropTouchable}
           activeOpacity={1}
-          onPress={handleBackToEmail}
+          onPress={() => {}} // 禁用背景点击关闭
         />
         
         {/* Minimal modal content */}

@@ -7,11 +7,9 @@ class ChatRequest(BaseModel):
     conversation_id: Optional[str] = None
 
 class ChatResponse(BaseModel):
-    message_id: str
-    reply: str
+    message: str
     conversation_id: str
-    function_called: Optional[Dict[str, Any]] = None
-    function_result: Optional[Dict[str, Any]] = None
+    function_calls: Optional[Dict[str, Any]] = None
     timestamp: datetime
 
 class ChatMessage(BaseModel):

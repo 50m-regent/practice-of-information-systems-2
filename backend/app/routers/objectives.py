@@ -62,7 +62,8 @@ async def get_objectives(current_user: User = Depends(get_current_user), db: Ses
                                     icon_str = friend_user.icon
                             friends.append({
                                 "friend_icon": icon_str,
-                                "friend_info": friend_value
+                                "friend_info": friend_value,
+                                "friend_sex": friend_user.sex
                             })
 
             user_category = db.query(UserVitalCategory).filter(

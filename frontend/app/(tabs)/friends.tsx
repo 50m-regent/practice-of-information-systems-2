@@ -44,7 +44,7 @@ export default function FriendsScreen() {
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
-        <Text style={styles.title}>Friends</Text>
+        <Text style={styles.title}>友達</Text>
         <TouchableOpacity style={styles.addButton} onPress={handleAddFriend}>
           <UserPlus size={20} color="#3B82F6" />
         </TouchableOpacity>
@@ -55,13 +55,16 @@ export default function FriendsScreen() {
           {friends.map(friend => (
             <TouchableOpacity
               key={friend.user_id}
-              style={styles.friendItem}
+              style={[
+                styles.friendItem,
+                { backgroundColor: friend.sex === false ? '#FFB6C1' : '#DBEAFE' }
+              ]}
               onPress={() => handleFriendPress(friend.user_id)}
             >
-              <UserAvatar uri={typeof friend.icon === 'string' && friend.icon.length > 0 ? `data:image/png;base64,${friend.icon}` : ''} size={50} />
+              <UserAvatar uri={friend.icon ? `data:image/png;base64,${friend.icon}` : ''} size={50} />
               <View style={styles.friendInfo}>
                 <Text style={styles.friendName}>{friend.username}</Text>
-                <Text style={styles.friendAge}>Age {friend.age === -1 ? '未設定' : friend.age}</Text>
+                <Text style={styles.friendAge}>{friend.age === -1 ? '年齢未設定' : `${friend.age}歳`}</Text>
               </View>
             </TouchableOpacity>
           ))}
@@ -69,13 +72,13 @@ export default function FriendsScreen() {
 
         {friends.length === 0 && (
           <View style={styles.emptyState}>
-            <Text style={styles.emptyTitle}>No friends yet</Text>
+            <Text style={styles.emptyTitle}>友達がいません</Text>
             <Text style={styles.emptyText}>
-              Add friends to compare your health goals and progress together
+              友達を追加して健康目標と進捗を一緒に比較しましょう
             </Text>
             <TouchableOpacity style={styles.emptyButton} onPress={handleAddFriend}>
               <UserPlus size={20} color="#FFFFFF" />
-              <Text style={styles.emptyButtonText}>Add Your First Friend</Text>
+              <Text style={styles.emptyButtonText}>最初の友達を追加</Text>
             </TouchableOpacity>
           </View>
         )}
@@ -100,7 +103,7 @@ const styles = StyleSheet.create({
     borderBottomColor: '#E5E7EB'
   },
   title: {
-    fontSize: 24,
+    fontSize: 28,
     fontFamily: 'Inter-Bold',
     color: '#111827'
   },
