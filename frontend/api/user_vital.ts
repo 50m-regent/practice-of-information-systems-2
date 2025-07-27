@@ -1,67 +1,36 @@
-import axios from 'axios';
+import api from './base';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-// --- APIクライアント設定 ---
-// 本来lib/apiClient.tsに書いていた内容を、このファイルに直接記述します。
-const apiClient = axios.create({
-  // バックエンドサーバーのベースURL
-  // VITE_API_URLは.envファイルで管理するのがおすすめです。
-  baseURL: 'http://localhost:8000',
-  headers: {
-    'Content-Type': 'application/json',
-  },
-});
-
-apiClient.interceptors.request.use(
-  async (config) => {
-    // AsyncStorageなどから保存済みのトークンを取得
-    const token = await AsyncStorage.getItem('userToken'); // 'userToken'は保存時に使ったキー名
-
-    // トークンが存在すれば、リクエストヘッダーにAuthorizationヘッダーを追加
-    if (token) {
-      config.headers.Authorization = `Bearer ${token}`;
-    }
-    
-    // 変更した設定（config）を返す
-    return config;
-  },
-  (error) => {
-    // リクエストエラーの処理
-    return Promise.reject(error);
-  }
-);
-
-
-// --- 型定義 ---
-
-// GET /vitaldata/me/ のための型
+// --- 型定義 (変更なし) ---
 export interface UserVital {
   name: string;
   value: number;
   date: string;
 }
-
-// GET /vitaldata/life-logs/ のための型
 interface LifeLogDataPoint {
   x: string;
   y: number;
 }
-
 export interface LifeLogSeries {
   data_name: string;
   vitaldata_list: LifeLogDataPoint[];
 }
 
-
-// --- APIを叩く関数 ---
-
-/**
- * 現在のユーザーのバイタルデータ（身長など）を取得します。
- * @returns ユーザーのバイタルデータの配列
- */
+// --- APIを叩く関数 (修正後) ---
 export const fetchUserVitals = async (): Promise<UserVital[]> => {
   try {
-    const response = await apiClient.get<UserVital[]>('/vitaldata/me/');
+    // AsyncStorageから直接トークンを取得
+    const token = await AsyncStorage.getItem('userToken');
+    if (!token) {
+      throw new Error('認証トークンが見つかりません。ログインしてください。');
+    }
+
+    const response = await api.get<UserVital[]>('/vitaldata/me/', {
+      // ヘッダーに認証トークンを追加
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    });
     return response.data;
   } catch (error) {
     console.error('ユーザーデータの取得に失敗しました:', error);
@@ -71,16 +40,19 @@ export const fetchUserVitals = async (): Promise<UserVital[]> => {
 
 /**
  * 指定された期間のライフログ（血圧、歩数など）を取得します。
- * @param startDate - 開始日 (YYYY-MM-DD形式)
- * @param endDate - 終了日 (YYYY-MM-DD形式)
- * @returns ライフログデータの配列
+ * この関数を呼び出す前に、AsyncStorageからトークンを取得して渡してください。
  */
-export const fetchLifeLogs = async (startDate: string, endDate: string): Promise<LifeLogSeries[]> => {
+export const fetchLifeLogs = async (): Promise<LifeLogSeries[]> => {
   try {
-    const response = await apiClient.get<LifeLogSeries[]>('/vitaldata/life-logs/', {
-      params: {
-        start_date: startDate,
-        end_date: endDate,
+    const token = await AsyncStorage.getItem('userToken');
+    if (!token) {
+      throw new Error('認証トークンが見つかりません。ログインしてください。');
+    }
+    
+    // params（日付範囲）の指定をなくし、単純にGETリクエストを送る
+    const response = await api.get<LifeLogSeries[]>('/vitaldata/life-logs/', {
+      headers: {
+        Authorization: `Bearer ${token}`,
       },
     });
     return response.data;
