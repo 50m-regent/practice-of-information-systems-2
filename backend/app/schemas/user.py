@@ -38,7 +38,7 @@ class FriendDetailResponse(BaseModel):
     username: str
     age: int
     sex: Optional[bool] = None
-    vital_data: Optional[List[Dict[str, Any]]] = None
+    life_logs: Optional[List[Dict[str, Any]]] = None
 
 class AddFriendRequest(BaseModel):
     friend_id: int

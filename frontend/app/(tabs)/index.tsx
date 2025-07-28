@@ -11,7 +11,7 @@ import { ProfileEditModal } from '@/components/ProfileEditModal';
 import { getToken } from '@/utils/tokenStorage';
 import { getObjectives } from '@/api/objectives';
 // ★ 1. ライフログ取得用のAPI関数と型をインポート
-import { fetchLifeLogs, LifeLogSeries } from '@/api/user_vital';
+import { fetchLifeLogs, LifeLogSeries, createDataNameToIdMapping } from '@/api/user_vital';
 
 // --- ヘルパー関数 ---
 /**
@@ -58,6 +58,8 @@ export default function HomeScreen() {
   // ★ 2. ライフログ用のStateを追加
   const [lifeLogs, setLifeLogs] = useState<LifeLogSeries[]>([]);
   const [lifeLogsLoading, setLifeLogsLoading] = useState(true);
+  // ★ 3. データ名からIDへのマッピング用のStateを追加
+  const [dataNameToId, setDataNameToId] = useState<{ [key: string]: number }>({});
 
   const barWidthsRef = useRef<{ [key: string]: number }>({});
   const [barWidths, setBarWidths] = useState<{ [key: string]: number }>({});
@@ -65,7 +67,11 @@ export default function HomeScreen() {
   const fetchProfile = async () => {
     try {
       const token = await getToken();
-      if (!token) return;
+      if (!token) {
+        console.error("No token found");
+        setLoading(false);
+        return;
+      }
       const data = await getUserProfile(token);
       setUser({
         id: '',
@@ -79,6 +85,17 @@ export default function HomeScreen() {
       });
     } catch (e) {
       console.error("Profile fetch error:", e);
+      // エラーが発生してもデフォルトユーザーを設定して、ページの読み込みを継続する
+      setUser({
+        id: '',
+        name: 'ユーザー名未設定',
+        email: '',
+        dateOfBirth: '',
+        height: 0,
+        weight: 0,
+        gender: 'other',
+        avatar: '',
+      });
     } finally {
       setLoading(false);
     }
@@ -91,13 +108,14 @@ export default function HomeScreen() {
       setGoals(data);
     } catch (e) {
       console.error("Goals fetch error:", e);
+      // エラーが発生しても空の配列を設定して、ページの読み込みを継続する
       setGoals([]);
     } finally {
       setGoalsLoading(false);
     }
   };
   
-  // ★ 3. ライフログ取得用の関数を追加
+  // ★ 4. ライフログ取得用の関数を追加
   const fetchLogs = async () => {
     setLifeLogsLoading(true);
     try {
@@ -105,9 +123,22 @@ export default function HomeScreen() {
       setLifeLogs(data);
     } catch(e) {
       console.error("LifeLogs fetch error:", e);
+      // エラーが発生しても空の配列を設定して、ページの読み込みを継続する
       setLifeLogs([]);
     } finally {
       setLifeLogsLoading(false);
+    }
+  };
+
+  // ★ 5. データ名からIDへのマッピング取得用の関数を追加
+  const fetchDataNameToIdMapping = async () => {
+    try {
+      const mapping = await createDataNameToIdMapping();
+      setDataNameToId(mapping);
+    } catch (e) {
+      console.error("Data name to ID mapping fetch error:", e);
+      // エラーが発生しても空のマッピングを設定して、ページの読み込みを継続する
+      setDataNameToId({});
     }
   };
 
@@ -115,7 +146,8 @@ export default function HomeScreen() {
     React.useCallback(() => {
       fetchProfile();
       fetchGoals();
-      fetchLogs(); // ★ 4. 画面表示時にライフログも取得
+      fetchLogs(); // ★ 6. 画面表示時にライフログも取得
+      fetchDataNameToIdMapping(); // ★ 7. データ名からIDへのマッピングも取得
     }, [])
   );
 
@@ -269,7 +301,7 @@ export default function HomeScreen() {
           </View>
         </View>
 
-        {/* ★ 5. Life Log Section をAPIデータで動的に表示 */}
+        {/* ★ 8. Life Log Section をAPIデータで動的に表示 */}
         <View style={styles.section}>
            <Text style={styles.sectionTitle}>Life Log</Text>
           
@@ -279,8 +311,8 @@ export default function HomeScreen() {
             lifeLogs.map((logSeries) => {
               const chartData = formatDataForChart(logSeries);
               const latestValue = chartData.datasets[0].data.slice(-1)[0] || 0;
-              if (chartData.labels.length === 0) return null;
               
+              // 即使没有数据也显示图表，显示"データなし"状态
               return (
                 <ChartCard 
                   key={logSeries.data_name}
@@ -288,6 +320,8 @@ export default function HomeScreen() {
                   title={logSeries.data_name}
                   currentValue={latestValue}
                   data={chartData}
+                  onDataUpdated={fetchLogs} // データ更新時にライフログを再取得
+                  dataNameToId={dataNameToId} // データ名からIDへのマッピングを渡す
                 />
               );
             })
