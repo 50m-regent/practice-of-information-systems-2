@@ -5,7 +5,7 @@ import { getToken } from '@/utils/tokenStorage';
 export async function getObjectives() {
   const token = await getToken();
   if (!token) throw new Error('No token');
-  const res = await api.get('/objectives', {
+  const res = await api.get('/objectives/', {
     headers: { Authorization: `Bearer ${token}` }
   });
   return res.data;

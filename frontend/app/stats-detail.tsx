@@ -164,7 +164,7 @@ export default function StatsDetailScreen() {
 
         // 自分の情報と統計データを並行して取得
         const [histogramData, profileData, myLifeLogs] = await Promise.all([
-          fetchHistogramDataByGroups(type),
+          fetchHistogramDataByGroups(title),
           getUserProfile(token),
           fetchLifeLogs()
         ]);
