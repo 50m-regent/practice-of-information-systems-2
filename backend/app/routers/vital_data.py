@@ -16,19 +16,37 @@ router = APIRouter(prefix="/vitaldata", tags=["Vital Data"])
 
 @router.get("/category/", response_model=List[VitalDataCategoryResponse])
 async def get_my_category(current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
-    vital_data = db.query(VitalDataName).join(UserVitalCategory).filter(VitalDataName.id == UserVitalCategory.vital_id, UserVitalCategory.user_id == current_user.id).all()
-
+    # 获取所有可用的健康数据类型
+    all_vital_types = db.query(VitalDataName).all()
+    
     result = []
-    for data in vital_data:
+    for vital_type in all_vital_types:
         result.append(VitalDataCategoryResponse(
-            id = data.id,
-            name = data.name
+            id = vital_type.id,
+            name = vital_type.name
         ))
     
     return result
 
 @router.post("/register/")
 async def add_vital_data(request: RegisterRequest, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    # 检查用户是否已经有这个类型的设置
+    existing_category = db.query(UserVitalCategory).filter(
+        UserVitalCategory.vital_id == request.name_id,
+        UserVitalCategory.user_id == current_user.id
+    ).first()
+    
+    # 如果用户还没有这个类型的设置，创建一个默认设置
+    if not existing_category:
+        new_category = UserVitalCategory(
+            user_id=current_user.id,
+            vital_id=request.name_id,
+            is_public=True,  # 默认公开
+            is_accumulating=False  # 默认不累积
+        )
+        db.add(new_category)
+    
+    # 创建健康数据记录
     vital_data = VitalData(
         name_id=request.name_id,
         user_id=current_user.id,
@@ -59,12 +77,35 @@ async def create_new_category(
     else:
         category_id = existing_category.id
     
-    existing_category_in_user = db.query(UserVitalCategory).filter(UserVitalCategory.vital_id == category_id, UserVitalCategory.user_id == current_user.id).first()
-    if existing_category_in_user: #もしユーザーのカテゴリーにすでに存在する場合
-        return {"message": "Category already exists"} 
+    # 注意：这里不再自动创建 UserVitalCategory 记录
+    # 用户需要手动点击数据类型来注册到自己的账户
+    
+    return {"message": "New category created successfully"}
+
+@router.post("/register-category/")
+async def register_category_to_user(
+    request: CreateCategoryRequest,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    # 查找数据类型
+    existing_category = db.query(VitalDataName).filter(VitalDataName.name == request.vitaldataname).first()
+    if not existing_category:
+        raise HTTPException(status_code=404, detail="Vital data type not found")
+    
+    # 检查用户是否已经注册了这个类型
+    existing_category_in_user = db.query(UserVitalCategory).filter(
+        UserVitalCategory.vital_id == existing_category.id,
+        UserVitalCategory.user_id == current_user.id
+    ).first()
+    
+    if existing_category_in_user:
+        return {"message": "Category already registered"}
+    
+    # 为用户注册这个数据类型
     new_category = UserVitalCategory(
-        user_id = current_user.id,
-        vital_id = category_id,
+        user_id=current_user.id,
+        vital_id=existing_category.id,
         is_public=request.is_public,
         is_accumulating=request.is_accumulating
     )
@@ -72,7 +113,7 @@ async def create_new_category(
     db.commit()
     db.refresh(new_category)
     
-    return {"message": "New category created successfully"}
+    return {"message": "Category registered successfully"}
 
 @router.get("/statistics/", response_model=StatisticsResponse)
 async def get_statistics(
@@ -184,23 +225,47 @@ async def get_my_vital_data(current_user: User = Depends(get_current_user), db: 
 
 @router.get("/life-logs/", response_model=List[LifeLogGroupedResponse])
 async def get_life_logs(current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
-    # userのvitalデータと名前を結合
-    vital_data = db.query(VitalData).join(VitalDataName).filter(
-        VitalData.user_id == current_user.id,
-        VitalData.name_id == VitalDataName.id
-    ).order_by(VitalData.name_id, VitalData.date).all()
-
-    grouped = defaultdict(list)
-
-    for data in vital_data:
-        grouped[data.vitaldataname.name].append({
-            "x": data.date,
-            "y": data.value
+    # 获取用户注册的所有数据类型
+    user_categories = db.query(VitalDataName).join(UserVitalCategory).filter(
+        VitalDataName.id == UserVitalCategory.vital_id, 
+        UserVitalCategory.user_id == current_user.id
+    ).all()
+    
+    result = []
+    
+    for category in user_categories:
+        # 获取该类型的数据记录
+        vital_data = db.query(VitalData).filter(
+            VitalData.user_id == current_user.id,
+            VitalData.name_id == category.id
+        ).order_by(VitalData.date).all()
+        
+        # 转换为图表数据格式
+        vitaldata_list = [
+            {"x": data.date, "y": data.value}
+            for data in vital_data
+        ]
+        
+        result.append({
+            "data_name": category.name,
+            "vitaldata_list": vitaldata_list
         })
+    
+    return result
 
-    result = [
-        {"data_name": name, "vitaldata_list": values}
-        for name, values in grouped.items()
-    ]
+@router.get("/my-categories/", response_model=List[VitalDataCategoryResponse])
+async def get_my_registered_categories(current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    # 获取用户已注册的健康数据类型
+    user_categories = db.query(VitalDataName).join(UserVitalCategory).filter(
+        VitalDataName.id == UserVitalCategory.vital_id, 
+        UserVitalCategory.user_id == current_user.id
+    ).all()
 
+    result = []
+    for category in user_categories:
+        result.append(VitalDataCategoryResponse(
+            id = category.id,
+            name = category.name
+        ))
+    
     return result

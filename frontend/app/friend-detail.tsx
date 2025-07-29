@@ -466,6 +466,7 @@ export default function FriendDetailScreen() {
                   title={logSeries.data_name}
                   currentValue={latestValue}
                   data={chartData}
+                  readOnly={true}
                 />
               );
             })

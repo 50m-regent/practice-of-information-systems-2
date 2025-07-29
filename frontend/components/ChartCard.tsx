@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
-import { View, StyleSheet, useWindowDimensions, Text, TouchableOpacity, Modal, TextInput } from 'react-native';
+import { View, StyleSheet, useWindowDimensions, Text, TouchableOpacity, Modal, TextInput, Alert } from 'react-native';
 import { LineChart, BarChart } from 'react-native-chart-kit';
+import { registerVitalData, RegisterVitalDataRequest } from '@/api/user_vital';
 
 // コンポーネントが受け取るpropsの型を定義
 interface ChartCardProps {
@@ -18,16 +19,23 @@ interface ChartCardProps {
       colors?: ((opacity: number) => string)[];
     }[];
   };
+  // 新しいprops：データ更新時のコールバック
+  onDataUpdated?: () => void;
+  // データ名からIDへのマッピング（後で実装）
+  dataNameToId?: { [key: string]: number };
+  // 新しいprops：読み取り専用モード（友達のデータ表示時など）
+  readOnly?: boolean;
 }
 
 // const screenWidth = Dimensions.get('window').width;
 
-export function ChartCard({ type, data, title, currentValue }: ChartCardProps) {
+export function ChartCard({ type, data, title, currentValue, onDataUpdated, dataNameToId, readOnly = false }: ChartCardProps) {
   // 「フレンドに公開」ボタンの状態を管理
   const { width: screenWidth } = useWindowDimensions(); 
   const [isShared, setIsShared] = useState(false);
   const [isModalVisible, setIsModalVisible] = useState(false);
   const [inputValue, setInputValue] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const handleSharePress = () => {
     setIsShared(!isShared);
@@ -42,10 +50,49 @@ export function ChartCard({ type, data, title, currentValue }: ChartCardProps) {
     setInputValue('');
   };
 
-  const handleDataSubmit = () => {
-    // For demo, just close modal. In real app, update chart data here.
+  const handleDataSubmit = async () => {
+    if (!inputValue.trim()) {
+      Alert.alert('エラー', '値を入力してください。');
+      return;
+    }
+
+    const value = parseFloat(inputValue);
+    if (isNaN(value) || value < 0) {
+      Alert.alert('エラー', '有効な数値を入力してください。');
+      return;
+    }
+
+    // データ名からIDを取得
+    const nameId = dataNameToId?.[title];
+    if (!nameId) {
+      Alert.alert('エラー', 'このデータタイプのIDが見つかりません。');
+      return;
+    }
+
+    setIsSubmitting(true);
+    try {
+      const requestData: RegisterVitalDataRequest = {
+        name_id: nameId,
+        date: new Date().toISOString(),
+        value: value
+      };
+
+      await registerVitalData(requestData);
+      
+      Alert.alert('成功', 'データが正常に追加されました。');
     setIsModalVisible(false);
     setInputValue('');
+      
+      // 親コンポーネントにデータ更新を通知
+      if (onDataUpdated) {
+        onDataUpdated();
+      }
+    } catch (error) {
+      console.error('データ登録エラー:', error);
+      Alert.alert('エラー', 'データの追加に失敗しました。もう一度お試しください。');
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   // 折れ線グラフ用の設定
@@ -77,59 +124,75 @@ export function ChartCard({ type, data, title, currentValue }: ChartCardProps) {
       <View style={styles.header}>
         <View style={styles.headerLeft}>
           <Text style={styles.title}>{title}</Text>
-          <TouchableOpacity
-            onPress={handleSharePress}
-            // isSharedの状態によってスタイルを切り替え
-            style={[styles.button, isShared ? styles.buttonShared : styles.buttonDefault]}
-          >
-            <Text style={[styles.buttonText, isShared && styles.buttonTextShared]}>
-              {isShared ? 'フレンドに公開中' : 'フレンドに公開'}
-            </Text>
-          </TouchableOpacity>
+          {/* 読み取り専用モードでない場合のみボタンを表示 */}
+          {!readOnly && (
+            <TouchableOpacity
+              onPress={handleSharePress}
+              // isSharedの状態によってスタイルを切り替え
+              style={[styles.button, isShared ? styles.buttonShared : styles.buttonDefault]}
+            >
+              <Text style={[styles.buttonText, isShared && styles.buttonTextShared]}>
+                {isShared ? 'フレンドに公開中' : 'フレンドに公開'}
+              </Text>
+            </TouchableOpacity>
+          )}
         </View>
-        <TouchableOpacity style={styles.addDataButton} onPress={handleAddData}>
-          <Text style={styles.addDataButtonText}>データの追加</Text>
-        </TouchableOpacity>
+        {/* 読み取り専用モードでない場合のみボタンを表示 */}
+        {!readOnly && (
+          <TouchableOpacity style={styles.addDataButton} onPress={handleAddData}>
+            <Text style={styles.addDataButtonText}>データの追加</Text>
+          </TouchableOpacity>
+        )}
       </View>
 
       {/* グラフエリア：影付きの枠で囲む */}
       <View style={styles.chartWrapper}>
         <View style={styles.currentValueContainer}>
           <Text style={styles.currentValueLabel}>今日:</Text>
-          <Text style={styles.currentValue}>{currentValue}</Text>
+          <Text style={styles.currentValue}>{currentValue || 'データなし'}</Text>
         </View>
 
-        {/* typeに応じてグラフを切り替え */}
-        {type === 'line' && (
-          <LineChart
-            data={data}
-            width={screenWidth - 80}
-            height={200}
-            chartConfig={lineChartConfig}
-            style={styles.chart}
-            yAxisLabel=""
-            yAxisSuffix=""
-            withInnerLines={false}
-            withOuterLines={false}
-            fromZero={false}
-          />
-        )}
-        {type === 'bar' && (
-          <BarChart
-            data={data}
-            width={screenWidth - 80}
-            height={200}
-            chartConfig={barChartConfig}
-            style={styles.chart}
-            yAxisLabel=""
-            yAxisSuffix=""
-            withInnerLines={false}
-            fromZero={true}
-            showValuesOnTopOfBars={false}
-            showBarTops={false}
-            withCustomBarColorFromData={true}
-            flatColor={true}
-          />
+        {/* データがない場合の表示 */}
+        {(!data.labels || data.labels.length === 0) ? (
+          <View style={styles.noDataContainer}>
+            <Text style={styles.noDataText}>データがありません</Text>
+            <Text style={styles.noDataSubText}>「データの追加」ボタンから最初のデータを記録してください</Text>
+          </View>
+        ) : (
+          <>
+            {/* typeに応じてグラフを切り替え */}
+            {type === 'line' && (
+              <LineChart
+                data={data}
+                width={screenWidth - 80}
+                height={200}
+                chartConfig={lineChartConfig}
+                style={styles.chart}
+                yAxisLabel=""
+                yAxisSuffix=""
+                withInnerLines={false}
+                withOuterLines={false}
+                fromZero={false}
+              />
+            )}
+            {type === 'bar' && (
+              <BarChart
+                data={data}
+                width={screenWidth - 80}
+                height={200}
+                chartConfig={barChartConfig}
+                style={styles.chart}
+                yAxisLabel=""
+                yAxisSuffix=""
+                withInnerLines={false}
+                fromZero={true}
+                showValuesOnTopOfBars={false}
+                showBarTops={false}
+                withCustomBarColorFromData={true}
+                flatColor={true}
+              />
+            )}
+          </>
         )}
       </View>
       <Modal
@@ -153,9 +216,16 @@ export function ChartCard({ type, data, title, currentValue }: ChartCardProps) {
               value={inputValue}
               onChangeText={setInputValue}
               keyboardType="numeric"
+              editable={!isSubmitting}
             />
-            <TouchableOpacity style={styles.modalButton} onPress={handleDataSubmit}>
-              <Text style={styles.modalButtonText}>データを追加</Text>
+            <TouchableOpacity 
+              style={[styles.modalButton, isSubmitting && styles.modalButtonDisabled]} 
+              onPress={handleDataSubmit}
+              disabled={isSubmitting}
+            >
+              <Text style={[styles.modalButtonText, isSubmitting && styles.modalButtonTextDisabled]}>
+                {isSubmitting ? '送信中...' : 'データを追加'}
+              </Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -257,6 +327,21 @@ const styles = StyleSheet.create({
   chart: {
     // グラフ自体のスタイル調整
   },
+  noDataContainer: {
+    alignItems: 'center',
+    paddingVertical: 20,
+  },
+  noDataText: {
+    fontSize: 18,
+    fontFamily: 'Inter-Bold',
+    color: '#6B7280',
+    marginBottom: 8,
+  },
+  noDataSubText: {
+    fontSize: 14,
+    fontFamily: 'Inter-Regular',
+    color: '#9CA3AF',
+  },
   modalOverlay: {
     flex: 1,
     backgroundColor: 'rgba(230,231,238,0.75)',
@@ -318,10 +403,17 @@ const styles = StyleSheet.create({
     shadowRadius: 8,
     elevation: 2,
   },
+  modalButtonDisabled: {
+    backgroundColor: '#D1D5DB',
+    opacity: 0.6,
+  },
   modalButtonText: {
     fontFamily: 'Noto Sans JP',
     fontWeight: 'bold',
     fontSize: 16,
     color: '#565869',
+  },
+  modalButtonTextDisabled: {
+    color: '#9CA3AF',
   },
 });

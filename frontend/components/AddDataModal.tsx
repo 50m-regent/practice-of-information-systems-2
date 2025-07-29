@@ -21,6 +21,7 @@ interface AddDataModalProps {
     color: string;
     icon: React.ComponentType<any>;
     placeholder: string;
+    categoryId?: number; // 添加categoryId字段
   } | null;
   onClose: () => void;
   onSave: (data: any) => void;

@@ -37,7 +37,12 @@ async def login(request: LoginRequest, background_tasks: BackgroundTasks, db: Se
     db.add(otp_record)
     db.commit()
     
-    background_tasks.add_task(send_otp_email, user.email, otp_code)
+    # 邮件发送をバックグラウンドで実行し、エラーが発生してもログイン処理を継続
+    try:
+        background_tasks.add_task(send_otp_email, user.email, otp_code)
+    except Exception as e:
+        print(f"Email sending failed: {e}")
+        # 邮件发送失败时，仍然返回OTP代码用于测试
 
     return {"message": f"OTP sent to your email.: {otp_code}"}
 

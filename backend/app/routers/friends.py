@@ -59,20 +59,32 @@ async def get_friend_detail(user_id: int, current_user: User = Depends(get_curre
         if (today.month, today.day) < (friend.date_of_birth.month, friend.date_of_birth.day):
             age -= 1
     
-    vital_data = []
-    vital_datas = db.query(VitalData).join(UserVitalCategory, VitalData.user_id == UserVitalCategory.user_id)\
-        .join(VitalDataName, VitalData.name_id == VitalDataName.id)\
-        .filter(
-            VitalData.user_id == friend.id
-        ).order_by(VitalData.date.desc()).all()
+    # Get friend's registered categories that are public
+    user_categories = db.query(VitalDataName).join(UserVitalCategory).filter(
+        VitalDataName.id == UserVitalCategory.vital_id, 
+        UserVitalCategory.user_id == friend.id,
+        UserVitalCategory.is_public == True
+    ).all()
     
-    for data in vital_datas:
-        if data.UserVitalCategory.is_public == True:
-            vital_data.append({
-                "data_name": data.VitalDataNamename,
-                "value": data.VitalData.value,
-                "date": data.VitalData.date
-            })
+    life_logs = []
+    
+    for category in user_categories:
+        # Get vital data for this category
+        vital_data = db.query(VitalData).filter(
+            VitalData.user_id == friend.id,
+            VitalData.name_id == category.id
+        ).order_by(VitalData.date).all()
+        
+        # Convert to chart data format
+        vitaldata_list = [
+            {"x": data.date.isoformat(), "y": data.value}
+            for data in vital_data
+        ]
+        
+        life_logs.append({
+            "data_name": category.name,
+            "vitaldata_list": vitaldata_list
+        })
     
     return FriendDetailResponse(
         user_id=friend.id,
@@ -80,7 +92,7 @@ async def get_friend_detail(user_id: int, current_user: User = Depends(get_curre
         username=friend.username,
         age=age,
         sex=friend.sex,
-        vital_data=vital_data
+        life_logs=life_logs
     )
 
 @router.post("/add/")
